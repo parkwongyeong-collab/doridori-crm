@@ -1282,11 +1282,11 @@ function renderDashboard(){
     <div class="page-sub">${fmtKr(td)}</div>
     <div class="action-bar">
       <div class="date-nav-wrap">
-        <button class="date-nav-btn" onclick="btnDatePrev(event)">&#8249;</button>
-        <div class="date-nav-center" onclick="openDatePicker('datepicker-dash',this)"><span id="disp-dash-date">${fmtNav(td)}</span></div>
-        <button class="date-nav-btn" onclick="btnDateNext(event)">&#8250;</button>
+        <button class="date-nav-btn" onmousedown="event.preventDefault();btnDatePrev()" ontouchstart="event.preventDefault();btnDatePrev()">&#8249;</button>
+        <div class="date-nav-center" onmousedown="event.preventDefault();openDatePicker('datepicker-dash',this)"><span id="disp-dash-date">${fmtNav(td)}</span></div>
+        <button class="date-nav-btn" onmousedown="event.preventDefault();btnDateNext()" ontouchstart="event.preventDefault();btnDateNext()">&#8250;</button>
       </div>
-      <button class="btn" style="font-size:12px;padding:6px 10px" onclick="btnToday(event)">오늘</button>
+      <button class="btn" style="font-size:12px;padding:6px 10px" onmousedown="event.preventDefault();btnToday()">오늘</button>
       <button class="btn" onclick="downloadExcel()">${I.dl} 엑셀 다운로드</button>
       <button class="btn" onclick="nav('ledger')">${I.ledger} 일계표</button>
       <button class="btn btn-primary" onclick="nav('newpatient')">${I.userPlus} 새 환자 등록</button>
@@ -1400,9 +1400,9 @@ function renderLedger(){
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
         <div style="display:inline-flex;align-items:center">
           <div class="date-nav-wrap">
-            <button class="date-nav-btn" onclick="btnDatePrev(event)">&#8249;</button>
-            <div class="date-nav-center" onclick="openDatePicker('datepicker-ledger2',this)"><span id="disp-ledger-date">${fmtNav(d)}</span></div>
-            <button class="date-nav-btn" onclick="btnDateNext(event)">&#8250;</button>
+            <button class="date-nav-btn" onmousedown="event.preventDefault();btnDatePrev()" ontouchstart="event.preventDefault();btnDatePrev()">&#8249;</button>
+            <div class="date-nav-center" onmousedown="event.preventDefault();openDatePicker('datepicker-ledger2',this)"><span id="disp-ledger-date">${fmtNav(d)}</span></div>
+            <button class="date-nav-btn" onmousedown="event.preventDefault();btnDateNext()" ontouchstart="event.preventDefault();btnDateNext()">&#8250;</button>
           </div>
         </div>
         <button class="btn btn-sm" onclick="addLR('${d}')">${I.plus} 행 추가</button>
@@ -1923,9 +1923,9 @@ function renderHappyCall(){
       <div class="action-bar" style="margin-bottom:12px">
         <div style="display:inline-flex;align-items:center">
           <div class="date-nav-wrap">
-            <button class="date-nav-btn" onclick="btnHCPrev(event)" style="width:52px;height:50px;font-size:26px">&#8249;</button>
-            <div class="date-nav-center" onclick="openDatePicker('datepicker-hc',this)" style="min-width:150px;height:50px;font-size:14px;font-weight:700"><span id="disp-hc-date">${fmtNav(d)}</span></div>
-            <button class="date-nav-btn" onclick="btnHCNext(event)" style="width:52px;height:50px;font-size:26px">&#8250;</button>
+            <button class="date-nav-btn" onmousedown="event.preventDefault();btnHCPrev()" ontouchstart="event.preventDefault();btnHCPrev()" style="width:52px;height:50px;font-size:26px">&#8249;</button>
+            <div class="date-nav-center" onmousedown="event.preventDefault();openDatePicker('datepicker-hc',this)" style="min-width:150px;height:50px;font-size:14px;font-weight:700"><span id="disp-hc-date">${fmtNav(d)}</span></div>
+            <button class="date-nav-btn" onmousedown="event.preventDefault();btnHCNext()" ontouchstart="event.preventDefault();btnHCNext()" style="width:52px;height:50px;font-size:26px">&#8250;</button>
           </div>
         </div>
         <input type="date" id="datepicker-hc" value="${d}" onchange="setHCDate(this.value)" style="position:fixed;top:-300px;left:-300px;width:1px;height:1px;opacity:0;pointer-events:none;">
