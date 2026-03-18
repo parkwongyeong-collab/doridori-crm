@@ -272,6 +272,17 @@ const VISIT_TYPES=['신환','재진','ta','ta초진','ta일반','ta추나','6개
 const CATEGORIES=['신환','ta초진','ta','재진','6개월재초진','건보추나','ta일반','ta추나','비급여'];
 
 // 비급여 처방 프리셋 (처방명, 기간일수)
+const ROOMS=[
+  {id:'301',label:'301호',type:'3인실',beds:3},
+  {id:'302',label:'302호',type:'3인실',beds:3},
+  {id:'303',label:'303호',type:'당직실',beds:1},
+  {id:'304',label:'304호',type:'1인실',beds:1},
+  {id:'305',label:'305호',type:'1인실',beds:1},
+  {id:'306',label:'306호',type:'4인실',beds:4},
+  {id:'307',label:'307호',type:'3인실',beds:3},
+  {id:'308',label:'308호',type:'2인실',beds:2},
+];
+
 const BIGUBYEO_PRESETS=[
   {name:'보폐고',days:30,label:'보폐고 30일'},
   {name:'동안약침',days:90,label:'동안약침 90일'},
@@ -470,7 +481,8 @@ async function sbLoadAll(){
   if(!_sb)return false;
   showLoading(true);
   try{
-    const[pts,ldg,emp,sch,msgs,inp,hc]=await Promise.all([
+    // 각 테이블 개별 에러 처리 (한 테이블 실패해도 나머지 로드)
+    const[pts,ldg,emp,sch,msgs,inp,hc]=await Promise.allSettled([
       _sb.from('patients').select('*'),
       _sb.from('ledger_rows').select('*').order('created_at',{ascending:true}),
       _sb.from('employees').select('name').order('id',{ascending:true}),
@@ -478,7 +490,7 @@ async function sbLoadAll(){
       _sb.from('message_logs').select('*').order('created_at',{ascending:false}).limit(200),
       _sb.from('inpatients').select('*'),
       _sb.from('happycalls').select('*'),
-    ]);
+    ]).then(results=>results.map(r=>r.status==='fulfilled'?r.value:{data:null,error:r.reason}));
     if(!pts.error&&pts.data) S.patients=pts.data.map(rowToPt);
     if(!ldg.error&&ldg.data){
       S.ledger={};
@@ -513,20 +525,6 @@ async function sbLoadAll(){
       if(whStr){ const wh=JSON.parse(whStr); S.wardHistory=Array.isArray(wh)?wh:[]; }
     }catch(e){}
 
-    // wardBeds, wardHistory 로드 (app_settings 테이블)
-    try{
-      const{data:settings}=await _sb.from('app_settings').select('*');
-      if(settings){
-        settings.forEach(row=>{
-          if(row.key==='wardBeds'){
-            try{const parsed=JSON.parse(row.value);if(parsed&&typeof parsed==='object')S.wardBeds=parsed;}catch(e){}
-          }
-          if(row.key==='wardHistory'){
-            try{const parsed=JSON.parse(row.value);if(Array.isArray(parsed))S.wardHistory=parsed;}catch(e){}
-          }
-        });
-      }
-    }catch(e){console.warn('app_settings 로드 실패 (테이블 없을 수 있음):',e);}
     showLoading(false);
     return true;
   }catch(e){
@@ -1043,11 +1041,9 @@ function xlsxDownload(wb,filename){
 function downloadExcel(){
   if(!window.XLSX){loadXLSX(()=>downloadExcel());return;}
   const td=S.ledgerDate;const rows=getLedger(td);const allPts=S.patients;
-  const thisMonth=td.slice(0,7);
   const todayAppts=rows.filter(r=>r.appointmentDate===td);
   const tmrAppts=getLedger(addDays(td,1)).filter(r=>r.appointmentDate===addDays(td,1));
   const monthNoShow=Object.entries(S.ledger).filter(([d])=>d.startsWith(thisMonth)).flatMap(([lDate,rs])=>rs.filter(r=>r.noShow).map(r=>({...r,ledgerDate:lDate})));
-  const ip=getInpatients(td);
   const ipRows=[];
   ROOMS.forEach(room=>{
     (ip[room.id]||[]).forEach(b=>{
@@ -1199,6 +1195,7 @@ function renderSidebar(){
 
 function renderDashboard(){
   const td=S.ledgerDate;
+  const thisMonth=td.slice(0,7);
   const rows=getLedger(td);
   const allPt=S.patients;
   // 전체 일계표에서 오늘 날짜 예약 검색 (어느 날 입력됐든 appointmentDate가 오늘이면 표시)
@@ -1251,7 +1248,6 @@ function renderDashboard(){
   const thisMonthLedger=Object.entries(S.ledger).filter(([k])=>k.startsWith(thisMonth)).flatMap(([,v])=>v);
   const bigubyeoRows=thisMonthLedger.filter(r=>r.category==='비급여');
   const bigubyeoToday=rows.filter(r=>r.category==='비급여');
-  const thisMonth=td.slice(0,7);
   const monthlyAppts=Object.entries(S.ledger).filter(([d])=>d.startsWith(thisMonth)).flatMap(([,rs])=>rs.filter(r=>r.appointmentDate&&r.appointmentDate.startsWith(thisMonth)));
   const ystDate=addDays(td,-1);
   const ystNoShows=getLedger(ystDate).filter(r=>r.noShow);
@@ -2857,15 +2853,15 @@ function init(){
         sbLoadAll().then(loaded=>{
           showLoading(false);
           if(loaded){
-            // Supabase 로드 성공 → localStorage도 동기화
             SB_KEYS.forEach(k=>{
               try{localStorage.setItem('doridori_'+k,JSON.stringify(S[k]));}catch(e){}
             });
           }
           render();
         }).catch(e=>{
+          // Supabase 실패해도 오류화면 대신 정상 렌더링 (로컬 데이터로)
           showLoading(false);
-          console.error('Supabase 초기 로드 실패:',e);
+          console.warn('Supabase 로드 실패 (로컬 데이터로 실행):', e.message);
           render();
         });
       }else{
@@ -2875,9 +2871,10 @@ function init(){
       render();
     }
   }catch(e){
-    console.error(e);
-    var r=document.getElementById('root');
-    if(r) r.innerHTML='<div style="display:flex;align-items:center;justify-content:center;min-height:100vh"><div style="text-align:center;padding:40px"><div style="font-size:48px">⚠️</div><div style="font-size:18px;font-weight:600;margin:12px 0">오류 발생</div><div style="font-size:13px;color:#6b7280;margin-bottom:20px">'+e.message+'</div><button onclick="localStorage.clear();location.reload()" style="padding:10px 20px;background:#2563eb;color:#fff;border:none;border-radius:8px;cursor:pointer">초기화 후 재시작</button></div></div>';
+    console.error('init 오류:', e);
+    // 오류 나도 화면은 보여주기
+    showLoading(false);
+    try{ render(); }catch(e2){ console.error('render 실패:', e2); }
   }
 }
 if(document.readyState==="loading"){
