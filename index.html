@@ -648,17 +648,24 @@ async function testSupabaseConnection(){
 
 // 로딩 오버레이
 function showLoading(show){
-  let el=document.getElementById('loading-overlay');
-  if(show){
-    if(!el){
-      el=document.createElement('div');
-      el.id='loading-overlay';
-      el.style.cssText='position:fixed;inset:0;background:rgba(255,255,255,.85);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px';
-      el.innerHTML='<div style="width:40px;height:40px;border:4px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;animation:spin 1s linear infinite"></div><div style="font-size:14px;color:#374151;font-weight:500">Supabase에서 데이터 불러오는 중...</div>';
-      if(!document.getElementById('spin-style')){const s=document.createElement('style');s.id='spin-style';s.textContent='@keyframes spin{to{transform:rotate(360deg)}}';document.head.appendChild(s);}
-      document.body.appendChild(el);
+  // 로딩 오버레이 - 오류화면 절대 표시 안 함
+  try{
+    let el=document.getElementById('loading-overlay');
+    if(show){
+      if(!el){
+        el=document.createElement('div');
+        el.id='loading-overlay';
+        el.style.cssText='position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(255,255,255,.7);z-index:9999;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:14px;pointer-events:none';
+        el.innerHTML='<div style="width:36px;height:36px;border:4px solid #dbeafe;border-top-color:#2563eb;border-radius:50%;animation:spin .8s linear infinite"></div><div style="font-size:13px;color:#374151">데이터 동기화 중...</div>';
+        if(!document.getElementById('spin-style')){const s=document.createElement('style');s.id='spin-style';s.textContent='@keyframes spin{to{transform:rotate(360deg)}}';document.head.appendChild(s);}
+        document.body.appendChild(el);
+      }
+      // 5초 후 자동 제거 (무한 로딩 방지)
+      setTimeout(function(){showLoading(false);},5000);
+    }else{
+      if(el)el.remove();
     }
-  }else{if(el)el.remove();}
+  }catch(e){console.warn('showLoading 오류(무시):',e);}
 }
 
 const SB_KEYS=['patients','ledger','employees','schedule','messageLogs','inpatients','happycalls'];
@@ -2842,39 +2849,34 @@ window.btnSchedPrev=function(){S.scheduleMonth=pMonth(S.scheduleMonth);var e=doc
 window.btnSchedNext=function(){S.scheduleMonth=nMonth(S.scheduleMonth);var e=document.getElementById('disp-sched-month');if(e)e.textContent=S.scheduleMonth.replace('-','년 ')+'월';setTimeout(render,0);}
 
 function init(){
-  try{
-    loadAll(); // localStorage fallback으로 먼저 로드
-    loadXLSX();
-    // Supabase 자동 연결 + 데이터 로드
-    if(S.supabaseUrl && S.supabaseKey){
-      if(initSupabaseClient()){
-        showLoading(true);
-        render(); // localStorage 데이터로 일단 보여주기
-        sbLoadAll().then(loaded=>{
-          showLoading(false);
-          if(loaded){
-            SB_KEYS.forEach(k=>{
-              try{localStorage.setItem('doridori_'+k,JSON.stringify(S[k]));}catch(e){}
-            });
-          }
-          render();
-        }).catch(e=>{
-          // Supabase 실패해도 오류화면 대신 정상 렌더링 (로컬 데이터로)
-          showLoading(false);
-          console.warn('Supabase 로드 실패 (로컬 데이터로 실행):', e.message);
-          render();
-        });
-      }else{
-        render();
+  // 1단계: 로컬 데이터로 즉시 화면 표시
+  try{ loadAll(); }catch(e){ console.warn('loadAll 오류:', e); }
+  try{ loadXLSX(); }catch(e){}
+  try{ render(); }catch(e){ console.error('첫 render 오류:', e); }
+
+  // 2단계: Supabase 백그라운드 연결 (실패해도 앱에 영향 없음)
+  if(S.supabaseUrl && S.supabaseKey){
+    setTimeout(function(){
+      try{
+        if(initSupabaseClient()){
+          sbLoadAll().then(function(loaded){
+            showLoading(false);
+            if(loaded){
+              SB_KEYS.forEach(function(k){
+                try{localStorage.setItem('doridori_'+k,JSON.stringify(S[k]));}catch(e){}
+              });
+              try{ render(); }catch(e){}
+            }
+          }).catch(function(e){
+            showLoading(false);
+            console.warn('Supabase 로드 실패:', e.message||e);
+          });
+        }
+      }catch(e){
+        showLoading(false);
+        console.warn('Supabase 연결 실패:', e.message||e);
       }
-    }else{
-      render();
-    }
-  }catch(e){
-    console.error('init 오류:', e);
-    // 오류 나도 화면은 보여주기
-    showLoading(false);
-    try{ render(); }catch(e2){ console.error('render 실패:', e2); }
+    }, 100);
   }
 }
 if(document.readyState==="loading"){
