@@ -316,7 +316,7 @@ var S={
   modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,
   user:{name:'관리자',email:'admin@clinic.com'},
   solapiKey:'',solapiSecret:'',solapiSender:'',
-  supabaseUrl:'',supabaseKey:'',sbConnected:false,
+  supabaseUrl:'https://mzdxunkqewctmognveqo.supabase.co',supabaseKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA',sbConnected:false,
   calSelectedDate:null,acTarget:null,acList:[],acRowId:null,
   newPt:{chartNumber:'',name:'',gender:'남',phone:'',visitType:'신환',referralPath:'지인소개',treatmentArea:[],memo:''},
   editPt:null,
@@ -684,7 +684,8 @@ async function loadFromSupabaseOrLocal(){
 }
 // 하드코딩된 기본 Supabase 설정
 var DEFAULT_SB_URL='https://mzdxunkqewctmognveqo.supabase.co';
-b24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA';
+var DEFAULT_SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA';
+
 function loadAll(){
   ['patients','ledger','employees','schedule','messageLogs','inpatients','happycalls','wardBeds',
    'solapiKey','solapiSecret','solapiSender','user'].forEach(k=>{
