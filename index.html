@@ -1,4 +1,4 @@
-<!DOCTYPE html><!-- v2026-03-18 08:37:43 -->
+<!DOCTYPE html><!-- v2026-03-18-FINAL -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -394,12 +394,11 @@ function initSupabaseClient(){
 // ── Realtime 실시간 동기화 ─────────────────────────
 function startRealtime(){
   if(!_sb)return;
-  // 기존 채널 정리
-  if(_realtimeChannel){
-    try{_sb.removeChannel(_realtimeChannel);}catch(e){}
-    _realtimeChannel=null;
-  }
   try{
+    if(_realtimeChannel){
+      try{_sb.removeChannel(_realtimeChannel);}catch(e){}
+      _realtimeChannel=null;
+    }
     _realtimeChannel=_sb
       .channel('clinic-rt-'+Date.now(),{config:{broadcast:{self:false}}})
       .on('postgres_changes',{event:'*',schema:'public',table:'patients'},handleRealtimeChange)
@@ -408,25 +407,15 @@ function startRealtime(){
       .on('postgres_changes',{event:'*',schema:'public',table:'inpatients'},handleRealtimeChange)
       .on('postgres_changes',{event:'*',schema:'public',table:'schedule'},handleRealtimeChange)
       .subscribe(function(status){
-        console.log('Realtime 상태:', status);
         var el=document.querySelector('.sb-sync-time');
         if(status==='SUBSCRIBED'){
-          console.log('✅ 실시간 동기화 활성화');
           if(el)el.textContent='실시간 🟢';
-        } else if(status==='CHANNEL_ERROR'){
-          console.warn('Realtime 오류 - 30초 후 재시도');
-          if(el)el.textContent='재연결 중...';
-          // 30초 후 자동 재시도
-          setTimeout(function(){
-            if(_sb&&S.sbConnected) startRealtime();
-          },30000);
-        } else if(status==='CLOSED'){
-          if(el)el.textContent='연결 끊김';
+        } else {
+          if(el)el.textContent='오프라인';
         }
       });
-    console.log('Realtime 채널 등록됨');
   }catch(e){
-    console.error('Realtime 초기화 오류:',e);
+    console.warn('Realtime 시작 실패(무시):',e.message);
   }
 }
 
@@ -2749,18 +2738,26 @@ window.doLogin=()=>{
 function render(){
   const root=document.getElementById('root');
   if(!root)return;
-  if(!S.isLoggedIn){root.innerHTML=renderLogin();return}
+  if(!S.isLoggedIn){
+    try{root.innerHTML=renderLogin();}catch(e){console.error('renderLogin 오류:',e);}
+    return;
+  }
   let content='';
-  if(S.page==='dashboard')content=renderDashboard();
-  else if(S.page==='calendar')content=renderCalendar();
-  else if(S.page==='patients')content=renderPatients();
-  else if(S.page==='newpatient')content=renderNewPatient(false);
-  else if(S.page==='editpatient')content=renderNewPatient(true);
-  else if(S.page==='ledger')content=renderLedger();
-  else if(S.page==='schedule')content=renderSchedule();
-  else if(S.page==='happycall')content=renderHappyCall();
-  else if(S.page==='messages')content=renderMessages();
-  else if(S.page==='settings')content=renderSettings();
+  try{
+    if(S.page==='dashboard')content=renderDashboard();
+    else if(S.page==='calendar')content=renderCalendar();
+    else if(S.page==='patients')content=renderPatients();
+    else if(S.page==='newpatient')content=renderNewPatient(false);
+    else if(S.page==='editpatient')content=renderNewPatient(true);
+    else if(S.page==='ledger')content=renderLedger();
+    else if(S.page==='schedule')content=renderSchedule();
+    else if(S.page==='happycall')content=renderHappyCall();
+    else if(S.page==='messages')content=renderMessages();
+    else if(S.page==='settings')content=renderSettings();
+  }catch(e){
+    console.error('페이지 렌더 오류('+S.page+'):', e);
+    content='<div style="padding:40px;text-align:center;color:#dc2626">⚠️ 페이지 로드 오류: '+e.message+'</div>';
+  }
 
   root.innerHTML=`
     ${renderSidebar()}
