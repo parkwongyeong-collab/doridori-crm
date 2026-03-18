@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!DOCTYPE html><!-- v2026-03-18 08:37:43 -->
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
@@ -493,8 +493,8 @@ async function sbLoadAll(){
     }
     // wardBeds, wardHistory는 Supabase 테이블 없으므로 localStorage에서 보완
     try{
-      const wbStr=localStorage.getItem('clinic_wardBeds');
-      const whStr=localStorage.getItem('clinic_wardHistory');
+      const wbStr=localStorage.getItem('doridori_wardBeds');
+      const whStr=localStorage.getItem('doridori_wardHistory');
       if(wbStr) S.wardBeds=JSON.parse(wbStr);
       if(whStr){ const wh=JSON.parse(whStr); S.wardHistory=Array.isArray(wh)?wh:[]; }
     }catch(e){}
@@ -654,8 +654,8 @@ const SB_KEYS=['patients','ledger','employees','schedule','messageLogs','inpatie
 function save(key){
   // 1. localStorage (오프라인 백업)
   try{
-    localStorage.setItem('clinic_'+key,JSON.stringify(S[key]));
-    localStorage.setItem('clinic__lastSaved',new Date().toLocaleString('ko-KR'));
+    localStorage.setItem('doridori_'+key,JSON.stringify(S[key]));
+    localStorage.setItem('doridori__lastSaved',new Date().toLocaleString('ko-KR'));
   }catch(e){ console.error('localStorage 저장 오류:',key,e); }
 
   // 2. Supabase 우선 저장 (연결된 경우)
@@ -687,13 +687,13 @@ var DEFAULT_SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 function loadAll(){
   ['patients','ledger','employees','schedule','messageLogs','inpatients','happycalls','wardBeds',
    'solapiKey','solapiSecret','solapiSender','user'].forEach(k=>{
-    try{const v=localStorage.getItem('clinic_'+k);if(v!=null)S[k]=JSON.parse(v)}catch(e){console.warn('Load error:',k,e);}
+    try{const v=localStorage.getItem('doridori_'+k);if(v!=null)S[k]=JSON.parse(v)}catch(e){console.warn('Load error:',k,e);}
   });
 
   // supabaseUrl/Key는 빈값이면 기본값 사용
   try{
-    const savedUrl=localStorage.getItem('clinic_supabaseUrl');
-    const savedKey=localStorage.getItem('clinic_supabaseKey');
+    const savedUrl=localStorage.getItem('doridori_supabaseUrl');
+    const savedKey=localStorage.getItem('doridori_supabaseKey');
     S.supabaseUrl=(savedUrl&&JSON.parse(savedUrl))||DEFAULT_SB_URL;
     S.supabaseKey=(savedKey&&JSON.parse(savedKey))||DEFAULT_SB_KEY;
   }catch(e){
@@ -701,9 +701,9 @@ function loadAll(){
     S.supabaseKey=DEFAULT_SB_KEY;
   }
   // 로그인 상태 복원
-  try{const li=localStorage.getItem('clinic__loggedIn');if(li==='1')S.isLoggedIn=true;}catch{}
+  try{const li=localStorage.getItem('doridori__loggedIn');if(li==='1')S.isLoggedIn=true;}catch{}
 }
-function getLastSaved(){try{return localStorage.getItem('clinic__lastSaved')||null;}catch{return null;}}
+function getLastSaved(){try{return localStorage.getItem('doridori__lastSaved')||null;}catch{return null;}}
 function showToast(msg,type='ok'){S.toast={msg,type};render();setTimeout(()=>{S.toast=null;render()},2800)}
 // ── 일계표 자동완성 DOM 직접 업데이트 (포커스 유지) ──
 window.updLedgerAC=function(d, rowId, val){
@@ -1113,7 +1113,7 @@ function renderDrawer(){
       </button>`).join('')}
     </div>
     <div style="padding:16px 20px;border-top:1px solid #f3f4f6;margin-top:auto">
-      <button onclick="S.isLoggedIn=false;try{localStorage.removeItem('clinic__loggedIn')}catch{};closeDrawer();render()" style="display:flex;align-items:center;gap:8px;color:#ef4444;border:none;background:none;font-size:13px;cursor:pointer;font-family:inherit">
+      <button onclick="S.isLoggedIn=false;try{localStorage.removeItem('doridori__loggedIn')}catch{};closeDrawer();render()" style="display:flex;align-items:center;gap:8px;color:#ef4444;border:none;background:none;font-size:13px;cursor:pointer;font-family:inherit">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         로그아웃
       </button>
@@ -1175,7 +1175,7 @@ function renderSidebar(){
           ${getLastSaved()} 저장됨
         </div>`:'<div style="font-size:10px;color:#f59e0b;margin-top:8px">⚠️ Supabase 미연결</div>'
       }
-      <div class="logout-btn" onclick="S.isLoggedIn=false;try{localStorage.removeItem('clinic__loggedIn')}catch{};render()">${I.logout} 로그아웃</div>
+      <div class="logout-btn" onclick="S.isLoggedIn=false;try{localStorage.removeItem('doridori__loggedIn')}catch{};render()">${I.logout} 로그아웃</div>
     </div>
   </div>`;
 }
@@ -2574,7 +2574,7 @@ window.importBackup=(input)=>{
 window.clearAllData=()=>{
   // clinic_ 접두사 키만 삭제 (다른 사이트 데이터 보호)
   const keys=[];
-  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('clinic_'))keys.push(k);}
+  for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.startsWith('doridori_'))keys.push(k);}
   keys.forEach(k=>localStorage.removeItem(k));
   S={...S,patients:[],ledger:{},schedule:{},messageLogs:[],inpatients:{},happycalls:{},solapiKey:'',solapiSecret:'',solapiSender:''};
   showToast('초기화 완료');render();
@@ -2601,7 +2601,7 @@ window.doLogin=()=>{
   const pw=document.getElementById('li_pw')?.value;
   if(email==='admin@clinic.com'&&pw==='password123'){
     S.isLoggedIn=true;
-    try{localStorage.setItem('clinic__loggedIn','1');}catch{}
+    try{localStorage.setItem('doridori__loggedIn','1');}catch{}
     render();
   } else showToast('이메일 또는 비밀번호가 틀렸습니다','err');
 };
@@ -2723,7 +2723,7 @@ function init(){
           if(loaded){
             // Supabase 로드 성공 → localStorage도 동기화
             SB_KEYS.forEach(k=>{
-              try{localStorage.setItem('clinic_'+k,JSON.stringify(S[k]));}catch(e){}
+              try{localStorage.setItem('doridori_'+k,JSON.stringify(S[k]));}catch(e){}
             });
           }
           render();
