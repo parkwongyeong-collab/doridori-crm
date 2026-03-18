@@ -1,2 +1,0 @@
-# doridori-crm
-doridori-crm
