@@ -541,14 +541,21 @@ async function sbSave(key){
     if(key==='patients'){
       if(!S.patients.length){_isSaving=false;return;}
       const rows=S.patients.map(ptToRow);
-      const BATCH=500;
-      let hasError=false;
+      const BATCH=50; // 50명씩 안전하게
       for(let i=0;i<rows.length;i+=BATCH){
         const batch=rows.slice(i,i+BATCH);
-        const{error}=await _sb.from('patients').upsert(batch,{onConflict:'id'});
-        if(error){console.error('patients 배치 오류:',i,error);hasError=true;break;}
+        let retries=3;
+        while(retries>0){
+          const{error}=await _sb.from('patients').upsert(batch,{onConflict:'id'});
+          if(!error) break;
+          retries--;
+          if(retries===0){
+            console.error('patients 배치 최종 실패 ('+i+'/'+rows.length+'):', JSON.stringify(error));
+            throw new Error('patients 저장 실패 ('+i+'번째 배치): '+(error.message||JSON.stringify(error)));
+          }
+          await new Promise(r=>setTimeout(r,500)); // 0.5초 후 재시도
+        }
       }
-      if(hasError) throw new Error('patients 저장 중 오류 발생');
     }
     else if(key==='ledger'){
       const rows=[];
@@ -1726,7 +1733,14 @@ S.xlsImportMode = S.xlsImportMode || 'skip'; // skip | overwrite
 
 function renderPatients(){
   const q=S.searchQ.toLowerCase();
-  const filtered=q?S.patients.filter(p=>p.name.toLowerCase().includes(q)||p.chartNumber.toLowerCase().includes(q)||(p.phone||'').includes(q)):S.patients;
+  // 차트번호 숫자 기준 오름차순 정렬
+  const sorted=[...S.patients].sort((a,b)=>{
+    const na=parseInt(a.chartNumber)||0;
+    const nb=parseInt(b.chartNumber)||0;
+    if(na!==nb)return na-nb;
+    return (a.chartNumber||'').localeCompare(b.chartNumber||'');
+  });
+  const filtered=q?sorted.filter(p=>p.name.toLowerCase().includes(q)||p.chartNumber.toLowerCase().includes(q)||(p.phone||'').includes(q)):sorted;
 
   // 임포트 미리보기 모달
   let importModal='';
@@ -1911,81 +1925,91 @@ window.confirmImport=async()=>{
     } else {S.patients.push(r);added++;}
   });
   S.xlsImportData=null;
-  // ① localStorage 즉시 저장
-  try{localStorage.setItem('doridori_patients',JSON.stringify(S.patients));}catch(e){}
   render();
-  showToast(`로컬 저장 완료 - Supabase 업로드 중...`);
-  // ② Supabase 배치 저장
-  if(_sb&&S.sbConnected){
-    const total=S.patients.length;
-    const BATCH=100; // 100명씩 나눠서 안전하게
-    const rows=S.patients.map(ptToRow);
-    let hasErr=false;
-    let savedCount=0;
-    _isSaving=false; // 혹시 잠긴 플래그 초기화
-    for(let i=0;i<rows.length;i+=BATCH){
-      const batch=rows.slice(i,i+BATCH);
+  // ① localStorage - 용량 초과 시 분할 저장
+  try{
+    localStorage.setItem('doridori_patients',JSON.stringify(S.patients));
+  }catch(e){
+    // 5MB 초과 시 최근 500명만 캐시
+    try{localStorage.setItem('doridori_patients',JSON.stringify(S.patients.slice(-500)));}catch(e2){}
+    console.warn('localStorage 용량 초과, Supabase에만 저장');
+  }
+  if(!_sb||!S.sbConnected){
+    showToast(`✅ 로컬 저장! 신규 ${added}명 (Supabase 미연결)`);
+    return;
+  }
+  // ② Supabase 배치 저장 (50명씩 + 딜레이 + 재시도)
+  const total=S.patients.length;
+  const BATCH=50;
+  const rows=S.patients.map(ptToRow);
+  let savedCount=0;
+  let failCount=0;
+  _isSaving=false;
+  showToast(`Supabase 저장 시작... (총 ${total}명)`);
+  for(let i=0;i<rows.length;i+=BATCH){
+    const batch=rows.slice(i,i+BATCH);
+    let success=false;
+    for(let retry=0;retry<3;retry++){
       try{
         const{error}=await _sb.from('patients').upsert(batch,{onConflict:'id'});
-        if(error){
-          console.error('배치 오류 ('+i+'):',error.message||error);
-          hasErr=true;
-          showToast('⚠️ 일부 배치 실패: '+( error.message||JSON.stringify(error)),'err');
-          break;
-        }
-        savedCount+=batch.length;
-        showToast(`저장 중... ${savedCount}/${total}명`);
+        if(!error){success=true;break;}
+        console.warn(`배치${i} 재시도${retry+1}:`,error.message||JSON.stringify(error));
+        await new Promise(r=>setTimeout(r,800*(retry+1)));
       }catch(e){
-        console.error('배치 예외 ('+i+'):',e.message||e);
-        hasErr=true;
-        showToast('⚠️ 오류: '+(e.message||String(e)),'err');
-        break;
+        console.warn(`배치${i} 예외 재시도${retry+1}:`,e.message);
+        await new Promise(r=>setTimeout(r,800*(retry+1)));
       }
     }
-    if(!hasErr){
-      showToast(`✅ 완료! ${total}명 저장됨 | 신규 ${added}명${overwritten>0?' · 수정 '+overwritten+'명':''}${skipped>0?' · 중복 건너뜀 '+skipped+'건':''}`);
+    if(success){
+      savedCount+=batch.length;
+      if(savedCount%200===0||savedCount===total)
+        showToast(`저장 중... ${savedCount}/${total}명`);
+    } else {
+      failCount+=batch.length;
+      console.error(`배치${i} 최종 실패`);
     }
+    // 배치 간 딜레이 (rate limit 방지)
+    await new Promise(r=>setTimeout(r,100));
+  }
+  if(failCount===0){
+    showToast(`✅ 완료! ${total}명 전체 저장됨 | 신규 ${added}명${overwritten>0?' · 수정 '+overwritten+'명':''}${skipped>0?' · 건너뜀 '+skipped+'건':''}`);
   } else {
-    showToast(`✅ 로컬 저장 완료! 신규 ${added}명${overwritten>0?' · 수정 '+overwritten+'명':''}${skipped>0?' · 중복 건너뜀 '+skipped+'건':''} (Supabase 미연결)`);
+    showToast(`⚠️ ${savedCount}명 저장 / ${failCount}명 실패 - 💾 저장하기 버튼으로 재시도해주세요`,'err');
   }
 };
 
 // 환자 목록 Supabase 저장
 window.savePatientsToDB=async function(){
   if(!S.patients.length){showToast('저장할 환자가 없습니다','err');return;}
-  try{localStorage.setItem('doridori_patients',JSON.stringify(S.patients));}catch(e){}
+  try{localStorage.setItem('doridori_patients',JSON.stringify(S.patients));}
+  catch(e){try{localStorage.setItem('doridori_patients',JSON.stringify(S.patients.slice(-500)));}catch(e2){}}
   if(!_sb||!S.sbConnected){
     showToast('✅ 로컬에 저장됨 (Supabase 미연결)');return;
   }
   const total=S.patients.length;
-  const BATCH=100;
+  const BATCH=50;
   const btn=document.querySelector('[onclick="savePatientsToDB()"]');
   if(btn){btn.textContent='저장 중...';btn.disabled=true;}
   const rows=S.patients.map(ptToRow);
-  let hasErr=false;
-  let saved=0;
+  let saved=0,failed=0;
   _isSaving=false;
   for(let i=0;i<rows.length;i+=BATCH){
     const batch=rows.slice(i,i+BATCH);
-    try{
-      const{error}=await _sb.from('patients').upsert(batch,{onConflict:'id'});
-      if(error){
-        hasErr=true;
-        showToast('⚠️ 오류: '+(error.message||JSON.stringify(error)),'err');
-        console.error('savePatients 배치 오류:',i,error);
-        break;
-      }
-      saved+=batch.length;
-      if(btn)btn.textContent=`저장 중 ${saved}/${total}...`;
-    }catch(e){
-      hasErr=true;
-      showToast('⚠️ 오류: '+(e.message||String(e)),'err');
-      console.error('savePatients 예외:',i,e);
-      break;
+    let ok=false;
+    for(let retry=0;retry<3;retry++){
+      try{
+        const{error}=await _sb.from('patients').upsert(batch,{onConflict:'id'});
+        if(!error){ok=true;break;}
+        await new Promise(r=>setTimeout(r,800*(retry+1)));
+      }catch(e){ await new Promise(r=>setTimeout(r,800*(retry+1))); }
     }
+    if(ok){ saved+=batch.length; if(btn)btn.textContent=`${saved}/${total}명...`; }
+    else failed+=batch.length;
+    await new Promise(r=>setTimeout(r,100));
   }
   if(btn){btn.textContent='💾 저장하기';btn.disabled=false;}
-  if(!hasErr) showToast(`✅ ${total}명 전체 저장 완료!`);
+  if(failed===0) showToast(`✅ ${total}명 전체 저장 완료!`);
+  else showToast(`⚠️ ${saved}명 저장 / ${failed}명 실패`,'err');
 };
 
 window.downloadSampleXls=()=>{
