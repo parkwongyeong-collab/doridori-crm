@@ -272,6 +272,14 @@ const VISIT_TYPES=['신환','재진','ta','ta초진','ta일반','ta추나','6개
 const CATEGORIES=['신환','ta초진','ta','재진','6개월재초진','건보추나','ta일반','ta추나','비급여'];
 
 // 비급여 처방 프리셋 (처방명, 기간일수)
+// ── 사용자 계정 ─────────────────────────────────────
+const USERS=[
+  {email:'pwk2956@naver.com', pw:'qwe0984',    name:'관리자', role:'admin'},
+  {email:'doridori@naver.com',pw:'20161107jh#', name:'원장님', role:'doctor'},
+  {email:'lee@naver.com',     pw:'20161107jh!', name:'이직원', role:'staff'},
+  {email:'kim@naver.com',     pw:'20161107jh!', name:'김직원', role:'staff'},
+];
+
 const ROOMS=[
   {id:'301',label:'301호',type:'3인실',beds:3},
   {id:'302',label:'302호',type:'3인실',beds:3},
@@ -339,7 +347,7 @@ var S={
   schedule:{},messageLogs:[],inpatients:{},happycalls:{},
   ledgerDate:todayStr(),calMonth:todayStr().slice(0,7),scheduleMonth:todayStr().slice(0,7),happycallDate:todayStr(),
   modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',
-  user:{name:'관리자',email:'admin@clinic.com'},
+  user:{name:'관리자',email:'pwk2956@naver.com',role:'admin'},
   solapiKey:'',solapiSecret:'',solapiSender:'',
   supabaseUrl:'https://mzdxunkqewctmognveqo.supabase.co',supabaseKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA',sbConnected:false,
   calSelectedDate:null,acTarget:null,acList:[],acRowId:null,
@@ -711,7 +719,14 @@ function loadAll(){
     S.supabaseKey=DEFAULT_SB_KEY;
   }
   // 로그인 상태 복원
-  try{const li=localStorage.getItem('doridori__loggedIn');if(li==='1')S.isLoggedIn=true;}catch{}
+  try{
+    const li=localStorage.getItem('doridori__loggedIn');
+    if(li==='1'){
+      S.isLoggedIn=true;
+      const savedUser=localStorage.getItem('doridori__user');
+      if(savedUser){const u=JSON.parse(savedUser);S.user={name:u.name||'관리자',email:u.email||'',role:u.role||'staff'};}
+    }
+  }catch{}
 }
 function getLastSaved(){try{return localStorage.getItem('doridori__lastSaved')||null;}catch{return null;}}
 function showToast(msg,type='ok'){S.toast={msg,type};render();setTimeout(()=>{S.toast=null;render()},2800)}
@@ -1118,7 +1133,7 @@ function renderDrawer(){
       </button>`).join('')}
     </div>
     <div style="padding:16px 20px;border-top:1px solid #f3f4f6;margin-top:auto">
-      <button onclick="S.isLoggedIn=false;try{localStorage.removeItem('doridori__loggedIn')}catch{};closeDrawer();render()" style="display:flex;align-items:center;gap:8px;color:#ef4444;border:none;background:none;font-size:13px;cursor:pointer;font-family:inherit">
+      <button onclick="S.isLoggedIn=false;S.user={name:'',email:'',role:''};try{localStorage.removeItem('doridori__loggedIn');localStorage.removeItem('doridori__user');}catch{};closeDrawer();render()" style="display:flex;align-items:center;gap:8px;color:#ef4444;border:none;background:none;font-size:13px;cursor:pointer;font-family:inherit">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
         로그아웃
       </button>
@@ -1180,7 +1195,7 @@ function renderSidebar(){
           ${getLastSaved()} 저장됨
         </div>`:'<div style="font-size:10px;color:#f59e0b;margin-top:8px">⚠️ Supabase 미연결</div>'
       }
-      <div class="logout-btn" onclick="S.isLoggedIn=false;try{localStorage.removeItem('doridori__loggedIn')}catch{};render()">${I.logout} 로그아웃</div>
+      <div class="logout-btn" onclick="S.isLoggedIn=false;S.user={name:'',email:'',role:''};try{localStorage.removeItem('doridori__loggedIn');localStorage.removeItem('doridori__user');}catch{};render()">${I.logout} 로그아웃</div>
     </div>
   </div>`;
 }
@@ -2771,25 +2786,50 @@ function renderLogin(){
   return`<div class="login-wrap">
     <div class="login-box">
       <div style="text-align:center;margin-bottom:28px">
-        <div style="width:52px;height:52px;background:#2563eb;border-radius:14px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
-        <div style="font-size:20px;font-weight:700;margin-bottom:4px">환자 관리 시스템</div>
-        <div style="font-size:13px;color:#6b7280">Patient Management System</div>
+        <div style="width:56px;height:56px;background:linear-gradient(135deg,#2563eb,#7c3aed);border-radius:16px;display:inline-flex;align-items:center;justify-content:center;margin-bottom:12px;box-shadow:0 4px 14px rgba(37,99,235,.3)">
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </div>
+        <div style="font-size:22px;font-weight:800;margin-bottom:4px;color:#111827">환자 관리 시스템</div>
+        <div style="font-size:12px;color:#9ca3af">도리도리 한의원</div>
       </div>
-      <div class="form-group"><label class="lbl">이메일</label><input id="li_email" class="form-inp" type="email" value="admin@clinic.com" placeholder="이메일 입력"></div>
-      <div class="form-group"><label class="lbl">비밀번호</label><input id="li_pw" class="form-inp" type="password" value="password123" placeholder="비밀번호 입력" onkeydown="if(event.key==='Enter')doLogin()"></div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:10px;margin-top:4px" onclick="doLogin()">로그인</button>
-      <div style="text-align:center;font-size:12px;color:#9ca3af;margin-top:14px">기본: admin@clinic.com / password123</div>
+      <div class="form-group">
+        <label class="lbl">이메일</label>
+        <input id="li_email" class="form-inp" type="email" placeholder="이메일을 입력하세요" autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label class="lbl">비밀번호</label>
+        <input id="li_pw" class="form-inp" type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;margin-top:8px;font-size:15px;font-weight:700" onclick="doLogin()">
+        로그인
+      </button>
+      <div id="login_err" style="text-align:center;font-size:12px;color:#dc2626;margin-top:10px;min-height:18px"></div>
     </div>
   </div>`;
 }
 window.doLogin=()=>{
-  const email=document.getElementById('li_email')?.value;
-  const pw=document.getElementById('li_pw')?.value;
-  if(email==='admin@clinic.com'&&pw==='password123'){
+  const email=(document.getElementById('li_email')?.value||'').trim().toLowerCase();
+  const pw=document.getElementById('li_pw')?.value||'';
+  const errEl=document.getElementById('login_err');
+  if(!email||!pw){
+    if(errEl)errEl.textContent='이메일과 비밀번호를 입력해주세요.';
+    return;
+  }
+  const user=USERS.find(u=>u.email.toLowerCase()===email&&u.pw===pw);
+  if(user){
     S.isLoggedIn=true;
-    try{localStorage.setItem('doridori__loggedIn','1');}catch{}
+    S.user={name:user.name,email:user.email,role:user.role};
+    try{
+      localStorage.setItem('doridori__loggedIn','1');
+      localStorage.setItem('doridori__user',JSON.stringify(S.user));
+    }catch{}
     render();
-  } else showToast('이메일 또는 비밀번호가 틀렸습니다','err');
+  } else {
+    if(errEl)errEl.textContent='이메일 또는 비밀번호가 올바르지 않습니다.';
+    // 비밀번호 입력창 흔들기
+    const pwEl=document.getElementById('li_pw');
+    if(pwEl){pwEl.style.borderColor='#dc2626';setTimeout(()=>{pwEl.style.borderColor='';},2000);}
+  }
 };
 
 // ── 메인 렌더 ──────────────────────────────────────────
