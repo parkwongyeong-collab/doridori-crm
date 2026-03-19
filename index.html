@@ -567,10 +567,27 @@ async function sbSave(key){
     }
     else if(key==='schedule'){
       const rows=[];
-      Object.entries(S.schedule).forEach(([date,emps])=>Object.entries(emps).forEach(([emp,shift])=>{if(shift)rows.push({date,employee_name:emp,shift});}));
+      Object.entries(S.schedule).forEach(([date,emps])=>
+        Object.entries(emps).forEach(([emp,shift])=>{
+          if(shift) rows.push({
+            id: date+'_'+emp.replace(/[^a-zA-Z0-9가-힣]/g,'_'),
+            date,
+            employee_name:emp,
+            shift
+          });
+        })
+      );
       if(!rows.length)return;
-      const{error}=await _sb.from('schedule').upsert(rows,{onConflict:'date,employee_name'});
-      if(error)console.error('schedule 오류:',error);
+      // id 기준 upsert (더 안전)
+      const{error}=await _sb.from('schedule').upsert(rows,{onConflict:'id'});
+      if(error){
+        console.error('schedule 오류:', JSON.stringify(error));
+        // fallback: 개별 저장
+        for(const row of rows){
+          const{error:e2}=await _sb.from('schedule').upsert([row],{onConflict:'id'});
+          if(e2) console.warn('schedule 개별 저장 실패:', row.id, JSON.stringify(e2));
+        }
+      }
     }
     else if(key==='messageLogs'){
       if(!S.messageLogs.length)return;
