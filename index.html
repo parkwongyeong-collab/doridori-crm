@@ -590,11 +590,31 @@ async function sbSave(key){
       const rows=[];
       Object.entries(S.ledger).forEach(([date,rs])=>rs.forEach(r=>rows.push(ledRowToSB(r,date))));
       if(!rows.length)return;
-      const BATCH=500;
+      const BATCH=200;
+      let savedOk=false;
+      // 1차 시도: 전체 컬럼
       for(let i=0;i<rows.length;i+=BATCH){
         const{error}=await _sb.from('ledger_rows').upsert(rows.slice(i,i+BATCH),{onConflict:'id'});
-        if(error){console.error('ledger 배치 오류:',i,error);break;}
+        if(error){
+          console.error('ledger 전체컬럼 오류:', JSON.stringify(error));
+          // 컬럼 오류면 기본 컬럼만으로 재시도
+          const basicRows=rows.map(r=>({
+            id:r.id, date:r.date,
+            chart_number:r.chart_number, patient_name:r.patient_name,
+            cash_amount:r.cash_amount, transfer_amount:r.transfer_amount, card_amount:r.card_amount,
+            vendor:r.vendor, note:r.note, category:r.category,
+            appointment_date:r.appointment_date, appointment_time:r.appointment_time,
+            guidance_type:r.guidance_type, memo:r.memo, no_show:r.no_show
+          }));
+          for(let j=0;j<basicRows.length;j+=BATCH){
+            const{error:e2}=await _sb.from('ledger_rows').upsert(basicRows.slice(j,j+BATCH),{onConflict:'id'});
+            if(e2) console.error('ledger 기본컬럼도 실패:',JSON.stringify(e2));
+            else savedOk=true;
+          }
+          break;
+        } else { savedOk=true; }
       }
+      if(savedOk) console.log('ledger 저장 완료:', rows.length+'행');
     }
     else if(key==='employees'){
       if(!S.employees.length)return;
@@ -1027,7 +1047,10 @@ function saveLedger(d,rows){
     sbSave('ledger').then(()=>{
       const el=document.querySelector('.sb-sync-time');
       if(el)el.textContent='✅ 저장됨 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
-    }).catch(e=>console.error('ledger 저장 오류:',e.message));
+    }).catch(e=>{
+      console.error('ledger 저장 오류:',e.message||JSON.stringify(e));
+      showToast('⚠️ 일계표 저장 실패: '+( e.message||'오류'), 'err');
+    });
   }
 }
 function newLedgerRow(){return{id:uid(),chartNumber:'',patientName:'',cashAmount:'',transferAmount:'',cardAmount:'',vendor:'',note:'',noteDate:'',noteDays:0,category:'',appointmentDate:'',appointmentTime:'',guidanceType:'',memo:'',noShow:false,prescription:'',prescriptionDate:'',prescriptionDays:0}}
