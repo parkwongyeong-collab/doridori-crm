@@ -1017,7 +1017,15 @@ window.goSchedMonth=function(delta){
 function getLedger(d){return S.ledger[d]||[]}
 function saveLedger(d,rows){
   S.ledger[d]=rows;
-  save('ledger');
+  // localStorage 저장
+  try{localStorage.setItem('doridori_ledger',JSON.stringify(S.ledger));}catch(e){}
+  // Supabase 저장 (연결된 경우)
+  if(_sb&&S.sbConnected){
+    sbSave('ledger').then(()=>{
+      const el=document.querySelector('.sb-sync-time');
+      if(el)el.textContent='✅ 저장됨 '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+    }).catch(e=>console.error('ledger 저장 오류:',e.message));
+  }
 }
 function newLedgerRow(){return{id:uid(),chartNumber:'',patientName:'',cashAmount:'',transferAmount:'',cardAmount:'',vendor:'',note:'',noteDate:'',noteDays:0,category:'',appointmentDate:'',appointmentTime:'',guidanceType:'',memo:'',noShow:false,prescription:'',prescriptionDate:'',prescriptionDays:0}}
 
@@ -1585,7 +1593,7 @@ function renderLedger(){
       <td><input class="tci" placeholder="메모" value="${(r.memo||'').replace(/"/g,'&quot;')}" oninput="updLR('${d}','${r.id}','memo',this.value)"></td>
       <td style="width:70px">
         <div class="row-acts">
-          <button class="ico-btn sv-btn" title="저장" onclick="saveLedger('${d}',getLedger('${d}'));showToast('저장됨')">${I.save}</button>
+          <button class="ico-btn sv-btn" title="저장" onclick="saveLedger('${d}',getLedger('${d}'));if(_sb&&S.sbConnected){sbSave('ledger').then(()=>showToast('✅ 저장됨')).catch(e=>showToast('⚠️ 저장 실패','err'));}else{showToast('로컬 저장됨');}">${I.save}</button>
           <button class="ico-btn${r.noShow?' active':''}" title="노쇼" style="${r.noShow?'background:#fef2f2;color:#dc2626;border-color:#fca5a5':''}" onclick="togNS('${d}','${r.id}')">${I.warn}</button>
           <button class="ico-btn dl-btn" title="삭제" onclick="delLR('${d}','${r.id}')">${I.trash}</button>
         </div>
@@ -1611,7 +1619,7 @@ function renderLedger(){
         <input type="date" id="datepicker-ledger" value="${d}" onchange="setDate(this.value)" style="position:fixed;top:-300px;left:-300px;width:1px;height:1px;opacity:0;pointer-events:none;">
         <input type="date" id="datepicker-ledger2" value="${d}" onchange="setDate(this.value)" style="position:fixed;top:-300px;left:-300px;width:1px;height:1px;opacity:0;pointer-events:none;">
         <button class="btn btn-sm" onclick="downloadExcel()">${I.dl} 엑셀</button>
-        <button class="btn btn-sm btn-primary" onclick="saveLedger('${d}',getLedger('${d}'));showToast('전체 저장됨 ✓')">${I.save} 전체 저장</button>
+        <button class="btn btn-sm btn-primary" onclick="saveLedger('${d}',getLedger('${d}'));if(_sb&&S.sbConnected){showToast('Supabase 저장 중...');sbSave('ledger').then(()=>showToast('✅ 전체 저장 완료!')).catch(e=>showToast('⚠️ 저장 실패: '+e.message,'err'));}else{showToast('✅ 로컬 저장됨');}">${I.save} 전체 저장</button>
       </div>
     </div>
     <div class="sum-bar">
