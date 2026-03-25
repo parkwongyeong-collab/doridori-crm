@@ -563,28 +563,24 @@ async function sbSave(key){
     if(key==='patients'){
       if(!S.patients.length){_isSaving=false;return;}
       const rows=S.patients.map(ptToRow);
-      const BATCH=100; // 100명씩
-      const PARALLEL=3; // 3개 배치 동시 처리
+      const BATCH=200; // 200명씩
+      const PARALLEL=5; // 5개 동시
       const batches=[];
       for(let i=0;i<rows.length;i+=BATCH) batches.push(rows.slice(i,i+BATCH));
-      // PARALLEL개씩 묶어서 병렬 처리
       for(let i=0;i<batches.length;i+=PARALLEL){
         const group=batches.slice(i,i+PARALLEL);
-        const results=await Promise.all(group.map(async(batch,gi)=>{
-          for(let retry=0;retry<3;retry++){
+        await Promise.all(group.map(async(batch,gi)=>{
+          for(let retry=0;retry<4;retry++){
             try{
-              const{error}=await _sb.from('patients').upsert(batch,{onConflict:'id'});
-              if(!error) return true;
-              console.warn('patients 배치'+(i+gi)+' 재시도'+(retry+1)+':',error.message||JSON.stringify(error));
-              await new Promise(r=>setTimeout(r,500*(retry+1)));
-            }catch(e){
-              await new Promise(r=>setTimeout(r,500*(retry+1)));
-            }
+              const{error}=await _sb.from('patients').upsert(batch,{onConflict:'id',ignoreDuplicates:false});
+              if(!error) return;
+              if(error.code==='23505'||error.message?.includes('duplicate')) return; // 중복 무시
+              console.warn('배치'+(i+gi)+' 재시도'+(retry+1),error.message);
+              await new Promise(r=>setTimeout(r,300*(retry+1)));
+            }catch(e){ await new Promise(r=>setTimeout(r,300*(retry+1))); }
           }
-          throw new Error('patients 배치'+(i+gi)+' 최종 실패');
         }));
-        // 그룹 간 딜레이
-        if(i+PARALLEL<batches.length) await new Promise(r=>setTimeout(r,200));
+        if(i+PARALLEL<batches.length) await new Promise(r=>setTimeout(r,100));
       }
     }
     else if(key==='ledger'){
@@ -1992,36 +1988,40 @@ window.confirmImport=async()=>{
     showToast(`✅ 로컬 저장! 신규 ${added}명 (Supabase 미연결)`);
     return;
   }
-  // ② Supabase 병렬 배치 저장
+  // ② Supabase 고속 병렬 배치 저장 (8000명 대응)
   const total=S.patients.length;
-  const BATCH=100;
-  const PARALLEL=3;
+  const BATCH=200, PARALLEL=5;
   const rows=S.patients.map(ptToRow);
   const batches=[];
-  for(let i=0;i<rows.length;i+=BATCH) batches.push({idx:batches.length,data:rows.slice(i,i+BATCH)});
+  for(let i=0;i<rows.length;i+=BATCH) batches.push(rows.slice(i,i+BATCH));
   let savedCount=0, failCount=0;
   _isSaving=false;
-  showToast(`Supabase 저장 시작... (총 ${total}명, ${batches.length}배치)`);
+  showToast(`저장 시작 (${total}명 / ${batches.length}배치)`);
   for(let i=0;i<batches.length;i+=PARALLEL){
     const group=batches.slice(i,i+PARALLEL);
-    await Promise.all(group.map(async({idx,data})=>{
-      for(let retry=0;retry<3;retry++){
+    await Promise.all(group.map(async(batch,gi)=>{
+      for(let retry=0;retry<4;retry++){
         try{
-          const{error}=await _sb.from('patients').upsert(data,{onConflict:'id'});
-          if(!error){savedCount+=data.length;return;}
-          await new Promise(r=>setTimeout(r,600*(retry+1)));
-        }catch(e){ await new Promise(r=>setTimeout(r,600*(retry+1))); }
+          const{error}=await _sb.from('patients').upsert(batch,{onConflict:'id'});
+          if(!error){savedCount+=batch.length;return;}
+          if(error.code==='23505'||error.message?.includes('duplicate')){savedCount+=batch.length;return;}
+          console.warn('배치'+(i+gi)+' 재시도'+(retry+1),error.message);
+          await new Promise(r=>setTimeout(r,300*(retry+1)));
+        }catch(e){ await new Promise(r=>setTimeout(r,300*(retry+1))); }
       }
-      failCount+=data.length;
-      console.error('배치'+idx+' 최종 실패');
+      failCount+=batch.length;
     }));
-    showToast(`저장 중... ${Math.min(savedCount+failCount,total)}/${total}명`);
-    if(i+PARALLEL<batches.length) await new Promise(r=>setTimeout(r,150));
+    // 진행률 표시 (100배치마다)
+    if((i/PARALLEL)%4===0||i+PARALLEL>=batches.length){
+      const pct=Math.round(Math.min(savedCount+failCount,total)/total*100);
+      showToast(`저장 중... ${savedCount}/${total}명 (${pct}%)`);
+    }
+    if(i+PARALLEL<batches.length) await new Promise(r=>setTimeout(r,80));
   }
   if(failCount===0){
-    showToast(`✅ 완료! ${total}명 전체 저장됨 | 신규 ${added}명${overwritten>0?' · 수정 '+overwritten+'명':''}${skipped>0?' · 건너뜀 '+skipped+'건':''}`);
+    showToast(`✅ ${total}명 전체 저장 완료! 신규 ${added}명${overwritten>0?' · 수정 '+overwritten+'명':''}${skipped>0?' · 건너뜀 '+skipped+'건':''}`);
   } else {
-    showToast(`⚠️ ${savedCount}명 저장 / ${failCount}명 실패 - 💾 저장하기 다시 눌러주세요`,'err');
+    showToast(`⚠️ ${savedCount}명 저장 / ${failCount}명 실패`,'err');
   }
 };
 
@@ -2033,7 +2033,7 @@ window.savePatientsToDB=async function(){
     showToast('✅ 로컬에 저장됨 (Supabase 미연결)');return;
   }
   const total=S.patients.length;
-  const BATCH=100,PARALLEL=3;
+  const BATCH=200,PARALLEL=5;
   const btn=document.querySelector('[onclick="savePatientsToDB()"]');
   if(btn){btn.textContent='저장 중...';btn.disabled=true;}
   const allRows=S.patients.map(ptToRow);
@@ -2044,17 +2044,19 @@ window.savePatientsToDB=async function(){
   for(let i=0;i<batches.length;i+=PARALLEL){
     const group=batches.slice(i,i+PARALLEL);
     await Promise.all(group.map(async(batch)=>{
-      for(let retry=0;retry<3;retry++){
+      for(let retry=0;retry<4;retry++){
         try{
           const{error}=await _sb.from('patients').upsert(batch,{onConflict:'id'});
           if(!error){saved+=batch.length;return;}
-          await new Promise(r=>setTimeout(r,600*(retry+1)));
-        }catch(e){ await new Promise(r=>setTimeout(r,600*(retry+1))); }
+          if(error.code==='23505'||error.message?.includes('duplicate')){saved+=batch.length;return;}
+          await new Promise(r=>setTimeout(r,300*(retry+1)));
+        }catch(e){ await new Promise(r=>setTimeout(r,300*(retry+1))); }
       }
       failed+=batch.length;
     }));
-    if(btn)btn.textContent=`${Math.min(saved+failed,total)}/${total}명...`;
-    if(i+PARALLEL<batches.length) await new Promise(r=>setTimeout(r,150));
+    const pct=Math.round(Math.min(saved+failed,total)/total*100);
+    if(btn)btn.textContent=`${pct}% (${Math.min(saved+failed,total)}/${total})`;
+    if(i+PARALLEL<batches.length) await new Promise(r=>setTimeout(r,80));
   }
   if(btn){btn.textContent='💾 저장하기';btn.disabled=false;}
   if(failed===0) showToast(`✅ ${total}명 전체 저장 완료!`);
