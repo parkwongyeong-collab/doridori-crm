@@ -500,7 +500,7 @@ async function sbLoadAll(){
     const [ptsAll, others] = await Promise.all([
       loadAllPatients(),
       Promise.allSettled([
-        _sb.from('ledger_rows').select('*').order('created_at',{ascending:true}),
+        _sb.from('ledger_rows').select('*').order('date',{ascending:false}).limit(5000),
         _sb.from('employees').select('name').order('id',{ascending:true}),
         _sb.from('schedule').select('*'),
         _sb.from('message_logs').select('*').order('created_at',{ascending:false}).limit(200),
@@ -516,6 +516,9 @@ async function sbLoadAll(){
     if(!ldg.error&&ldg.data){
       S.ledger={};
       ldg.data.forEach(r=>{if(!S.ledger[r.date])S.ledger[r.date]=[];S.ledger[r.date].push(sbToLedRow(r));});
+      // 예약날짜 있는 행 확인
+      const apptRows=ldg.data.filter(r=>r.appointment_date);
+      if(apptRows.length>0) console.log('📅 예약 데이터 로드됨:', apptRows.length+'건');
     }
     if(!emp.error&&emp.data) S.employees=emp.data.map(r=>r.name);
     if(!sch.error&&sch.data){
@@ -1264,24 +1267,25 @@ function renderSidebar(){
 
 function renderDashboard(){
   const td=S.ledgerDate;
-  const thisMonth=td.slice(0,7);
+  const realToday=todayStr(); // 실제 오늘 날짜 (항상)
+  const thisMonth=td.slice(0,7); // 선택한 날짜 기준 월
+  const realThisMonth=realToday.slice(0,7); // 실제 이번달
   const rows=getLedger(td);
   const allPt=S.patients;
-  // 전체 일계표에서 오늘 날짜 예약 검색 (어느 날 입력됐든 appointmentDate가 오늘이면 표시)
+  // 오늘 예약 = 실제 오늘 기준 (td가 아닌 realToday)
   const todayAppts=(()=>{
     const all=[];
-    // 전체 일계표에서 appointmentDate가 오늘인 것 + ledgerDate 포함
     Object.entries(S.ledger).forEach(([ledgerDate,dayRows])=>{
       (dayRows||[]).forEach(r=>{
-        if(r.appointmentDate===td) all.push({...r, ledgerDate});
+        if(r.appointmentDate===realToday) all.push({...r, ledgerDate});
       });
     });
     return all.sort((a,b)=>(a.appointmentTime||'').localeCompare(b.appointmentTime||''));
   })();
-  const tmrDate=addDays(td,1);
+  // 내일 예약 = 실제 오늘 +1일 기준
+  const tmrDate=addDays(realToday,1);
   const tmrAppts=(()=>{
     const all=[];
-    // 전체 일계표에서 appointmentDate가 내일인 것 모두 검색
     Object.entries(S.ledger).forEach(([ledgerDate,dayRows])=>{
       (dayRows||[]).forEach(r=>{
         if(r.appointmentDate===tmrDate) all.push({...r, ledgerDate});
@@ -1311,18 +1315,25 @@ function renderDashboard(){
   const taPatientNames=new Set([...taFromLedger.map(r=>r.chartNumber),...taFromPts.map(p=>p.chartNumber)]);
   const taPatients=[...taPatientNames].map(cn=>allPt.find(p=>p.chartNumber===cn)||taFromLedger.find(r=>r.chartNumber===cn)).filter(Boolean);
   // 오늘 날짜 일계표 중 예약날짜 없는 건 (오늘 진료 당일 워크인)
-  const noApptCount=rows.filter(r=>!r.appointmentDate&&(r.chartNumber||r.patientName)).length;
-  const totalRev=rows.reduce((s,r)=>s+(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0),0);
+  // 오늘 실제 일계표 rows (realToday 기준)
+  const todayRows=getLedger(realToday);
+  const noApptCount=todayRows.filter(r=>!r.appointmentDate&&(r.chartNumber||r.patientName)).length;
+  const totalRev=todayRows.reduce((s,r)=>s+(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0),0);
+
   // 비급여: 이번달 전체 일계표에서 category==='비급여'
-  const thisMonthLedger=Object.entries(S.ledger).filter(([k])=>k.startsWith(thisMonth)).flatMap(([,v])=>v);
+  const thisMonthLedger=Object.entries(S.ledger).filter(([k])=>k.startsWith(realThisMonth)).flatMap(([,v])=>v);
   const bigubyeoRows=thisMonthLedger.filter(r=>r.note&&r.note.trim());
   const bigubyeoToday=rows.filter(r=>r.note&&r.note.trim());
-  const monthlyAppts=Object.entries(S.ledger).filter(([d])=>d.startsWith(thisMonth)).flatMap(([,rs])=>rs.filter(r=>r.appointmentDate&&r.appointmentDate.startsWith(thisMonth)));
-  const ystDate=addDays(td,-1);
+  const monthlyAppts=Object.entries(S.ledger).filter(([d])=>d.startsWith(realThisMonth)).flatMap(([,rs])=>rs.filter(r=>r.appointmentDate&&r.appointmentDate.startsWith(realThisMonth)));
+  const ystDate=addDays(realToday,-1);
   const ystNoShows=getLedger(ystDate).filter(r=>r.noShow);
-  const rate=allPt.length>0?Math.round(todayAppts.length/allPt.length*100):0;
+  // 일일 예약율: 오늘 실제 내원 / 오늘 예약자
+  const todayLedgerCount=todayRows.filter(r=>r.chartNumber||r.patientName).length;
+  const rate=todayAppts.length>0
+    ?Math.round(todayLedgerCount/todayAppts.length*100)
+    :(todayLedgerCount>0?100:0);
   const mRate=allPt.length>0?Math.round(monthlyAppts.length/allPt.length*100):0;
-  const monthNoShow=Object.entries(S.ledger).filter(([d])=>d.startsWith(thisMonth)).flatMap(([lDate,rs])=>rs.filter(r=>r.noShow).map(r=>({...r,ledgerDate:lDate})));
+  const monthNoShow=Object.entries(S.ledger).filter(([d])=>d.startsWith(realThisMonth)).flatMap(([lDate,rs])=>rs.filter(r=>r.noShow).map(r=>({...r,ledgerDate:lDate})));
 
   // 모달 HTML
   let mHtml='';
@@ -1486,7 +1497,7 @@ function renderDashboard(){
     </div>
     <div class="stat-row">
       ${sc('#fee2e2','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="10" y1="14" x2="14" y2="18"/><line x1="14" y1="14" x2="10" y2="18"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg>','오늘 미예약',noApptCount,'','noAppt',true)}
-      ${sc('#dbeafe','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>','일일 예약율',rate+'%','','',false)}
+      ${sc('#dbeafe','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>','일일 예약율',rate+'%',todayLedgerCount+'명 내원 / '+todayAppts.length+'명 예약','',false)}
       ${sc('#ccfbf1','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0d9488" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/></svg>','월 예약율',mRate+'%',monthlyAppts.length+'명 예약','monthly',true)}
       ${sc('#fce7f3','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#be185d" stroke-width="2"><polyline points="23,6 13.5,15.5 8.5,10.5 1,18"/><polyline points="17,6 23,6 23,12"/></svg>','오늘 매출',fmtKrw(totalRev),'','revenue',true)}
       ${sc('#fee2e2','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>','이번달 노쇼',monthNoShow.length+'건','','noshow',true)}
@@ -1619,7 +1630,7 @@ function renderLedger(){
         <input type="date" id="datepicker-ledger" value="${d}" onchange="setDate(this.value)" style="position:fixed;top:-300px;left:-300px;width:1px;height:1px;opacity:0;pointer-events:none;">
         <input type="date" id="datepicker-ledger2" value="${d}" onchange="setDate(this.value)" style="position:fixed;top:-300px;left:-300px;width:1px;height:1px;opacity:0;pointer-events:none;">
         <button class="btn btn-sm" onclick="downloadExcel()">${I.dl} 엑셀</button>
-        <button class="btn btn-sm btn-primary" onclick="saveLedger('${d}',getLedger('${d}'));if(_sb&&S.sbConnected){showToast('Supabase 저장 중...');sbSave('ledger').then(()=>showToast('✅ 전체 저장 완료!')).catch(e=>showToast('⚠️ 저장 실패: '+e.message,'err'));}else{showToast('✅ 로컬 저장됨');}">${I.save} 전체 저장</button>
+        <button class="btn btn-sm btn-primary" onclick="saveLedger('${d}',getLedger('${d}'));if(_sb&&S.sbConnected){showToast('Supabase 저장 중...');sbSave('ledger').then(()=>{showToast('✅ 전체 저장 완료!');}).catch(e=>showToast('⚠️ 저장 실패: '+e.message,'err'));}else{showToast('✅ 로컬 저장됨');}">${I.save} 전체 저장</button>
       </div>
     </div>
     <div class="sum-bar">
@@ -1661,11 +1672,13 @@ window.setBigubyeo=function(d,id,val){
 };
 window.updLR=(d,id,field,val)=>{
   saveLedger(d,getLedger(d).map(r=>r.id===id?{...r,[field]:val}:r));
-  // 구분(category) 변경 시 Supabase 즉시 동기화
-  if(field==='category'||field==='appointmentDate'||field==='appointmentTime'){
-    if(_sb&&S.sbConnected) sbSave('ledger');
-    // 보고서 통계 즉시 업데이트
-    if(S.page==='dashboard') render();
+  // 중요 필드 변경 시 Supabase 즉시 저장
+  const importantFields=['category','appointmentDate','appointmentTime',
+    'cashAmount','transferAmount','cardAmount','prescriptionDate','noteDate','patientName','chartNumber'];
+  if(importantFields.includes(field)){
+    if(_sb&&S.sbConnected){
+      sbSave('ledger').catch(e=>console.error('ledger 저장오류:',e));
+    }
   }
 };
 window.addLR=(d)=>{const rows=getLedger(d);rows.push(newLedgerRow());saveLedger(d,rows);render()};
@@ -1678,6 +1691,7 @@ window.acPickLedger=(d,id,chart,name,phone,visitType)=>{
     patientName:name,
     category:r.category||visitType||''
   }:r));
+  if(_sb&&S.sbConnected) sbSave('ledger').catch(e=>console.error('acPick 저장오류:',e));
   // DOM 즉시 반영
   const inp=document.querySelector(`input[data-row-id="${id}"][data-field="chartNumber"]`);
   if(inp){inp.value=chart;}
@@ -2196,15 +2210,17 @@ window.applyDupDelete=async function(){
   if(!toDelete.length){showToast('삭제할 항목 없음');document.getElementById('dup-overlay')?.remove();return;}
   const delIds=toDelete.map(p=>p.id);
   S.patients=S.patients.filter(p=>!delIds.includes(p.id));
+  try{localStorage.setItem('doridori_patients',JSON.stringify(S.patients));}catch(e){}
   document.getElementById('dup-overlay')?.remove();
   render();
   showToast(`✅ 중복 ${delIds.length}명 삭제됨`);
   if(_sb&&S.sbConnected){
     const BATCH=50;
     for(let i=0;i<delIds.length;i+=BATCH){
-      await _sb.from('patients').delete().in('id',delIds.slice(i,i+BATCH));
+      const{error}=await _sb.from('patients').delete().in('id',delIds.slice(i,i+BATCH));
+      if(error) console.error('중복삭제 오류:',error);
     }
-    showToast(`✅ Supabase에서도 삭제 완료`);
+    showToast(`✅ Supabase 삭제 완료 (${delIds.length}명)`);
   }
 };
 
@@ -2257,9 +2273,13 @@ window.saveNewPt=()=>{
   if(S.patients.some(pt=>pt.chartNumber===p.chartNumber))return showToast('이미 등록된 차트번호입니다','err');
   const newPatient={...p,id:uid(),createdAt:new Date().toISOString()};
   S.patients.push(newPatient);
-  save('patients');
-  // Supabase 즉시 동기화
-  if(_sb&&S.sbConnected) sbSave('patients');
+  try{localStorage.setItem('doridori_patients',JSON.stringify(S.patients));}catch(e){}
+  // 신규 환자 1명만 바로 Supabase에 저장 (빠름)
+  if(_sb&&S.sbConnected){
+    _sb.from('patients').upsert([ptToRow(newPatient)],{onConflict:'id'})
+      .then(({error})=>{if(error)console.error('신규환자 저장오류:',error);else console.log('신규환자 저장완료');})
+      .catch(e=>console.error('신규환자 저장예외:',e));
+  }
   S.newPt={chartNumber:'',name:'',gender:'남',phone:'',visitType:'신환',referralPath:'지인소개',treatmentArea:[],memo:''};
   showToast('환자 등록 완료 ✓ (일계표 자동완성에 즉시 반영)');
   nav('patients');
@@ -2268,8 +2288,13 @@ window.saveEditPt=()=>{
   const p=S.editPt;
   if(!p.chartNumber||!p.name)return showToast('차트번호와 이름은 필수입니다','err');
   S.patients=S.patients.map(pt=>pt.id===p.id?{...p}:pt);
-  save('patients');
-  if(_sb&&S.sbConnected) sbSave('patients');
+  try{localStorage.setItem('doridori_patients',JSON.stringify(S.patients));}catch(e){}
+  // 수정된 환자 1명만 Supabase 저장
+  if(_sb&&S.sbConnected){
+    _sb.from('patients').upsert([ptToRow(p)],{onConflict:'id'})
+      .then(({error})=>{if(error)console.error('환자수정 저장오류:',error);})
+      .catch(e=>console.error('환자수정 저장예외:',e));
+  }
   showToast('수정 완료 ✓');nav('patients');
 };
 
@@ -2284,7 +2309,11 @@ const HC_STATUS=[
 const HC_TYPES=['신환','ta초진','ta','재진','6개월재초진','퇴원','기타'];
 
 function getHappyCalls(d){return S.happycalls[d]||[]}
-function saveHappyCalls(d){S.happycalls[d]=getHappyCalls(d);save('happycalls')}
+function saveHappyCalls(d){
+  S.happycalls[d]=getHappyCalls(d);
+  save('happycalls');
+  if(_sb&&S.sbConnected) sbSave('happycalls').catch(e=>console.error('happycalls 저장오류:',e));
+}
 function newHC(d,pt){
   return{
     id:uid(),date:d,
@@ -2778,7 +2807,7 @@ function renderSchedule(){
   function cycleShift(emp,d){
     const key=`${m}-${p2(d)}`;if(!S.schedule[key])S.schedule[key]={};
     const cur=S.schedule[key][emp]||'';const idx=SHIFTS.indexOf(cur);
-    S.schedule[key][emp]=SHIFTS[(idx+1)%SHIFTS.length];save('schedule');render();
+    S.schedule[key][emp]=SHIFTS[(idx+1)%SHIFTS.length];save('schedule');if(_sb&&S.sbConnected)sbSave('schedule').catch(e=>console.error('schedule:',e));render();
   }
   window._cycleShift=cycleShift;
   return`<div class="content">
@@ -2798,8 +2827,8 @@ function renderSchedule(){
     </div>
   </div>`;
 }
-window.addEmp=()=>{const n=prompt('직원 이름:');if(!n||!n.trim())return;if(S.employees.includes(n.trim()))return showToast('이미 있는 직원입니다','err');S.employees.push(n.trim());save('employees');render()};
-window.delEmp=(name)=>{if(!confirm(`${name}을(를) 삭제하시겠습니까?`))return;S.employees=S.employees.filter(e=>e!==name);save('employees');render()};
+window.addEmp=()=>{const n=prompt('직원 이름:');if(!n||!n.trim())return;if(S.employees.includes(n.trim()))return showToast('이미 있는 직원입니다','err');S.employees.push(n.trim());save('employees');if(_sb&&S.sbConnected)sbSave('employees').catch(e=>console.error(e));render()};
+window.delEmp=(name)=>{if(!confirm(`${name}을(를) 삭제하시겠습니까?`))return;S.employees=S.employees.filter(e=>e!==name);save('employees');if(_sb&&S.sbConnected)sbSave('employees').catch(e=>console.error(e));render()};
 
 // ── 알림톡 ─────────────────────────────────────────────
 function renderMessages(){
