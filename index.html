@@ -1410,12 +1410,12 @@ function renderDashboard(){
   // 오늘 날짜 일계표 중 예약날짜 없는 건 (오늘 진료 당일 워크인)
   // 선택 날짜(td) 기준 일계표 (보고서 날짜와 동기화)
   const todayRows=getLedger(td);
-  // 미예약 = 예약날짜 없거나 당일 예약
-  const noApptCount=todayRows.filter(r=>(r.chartNumber||r.patientName)&&(!r.appointmentDate||r.appointmentDate===td)).length;
-  // 선택 날짜 일계표 총 환자수
   const todayPtRows=todayRows.filter(r=>r.chartNumber||r.patientName);
   const todayPtCount=todayPtRows.length;
   const todayBigubyeoRows=todayPtRows.filter(r=>r.note&&r.note.trim());
+  // 미예약 = 예약날짜 없거나 당일 예약(선택날짜와 동일)
+  const noApptList=todayPtRows.filter(r=>!r.appointmentDate||(r.appointmentDate===td));
+  const noApptCount=noApptList.length;
   const totalRev=todayRows.reduce((s,r)=>s+(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0),0);
 
   // 비급여: 이번달 전체 일계표에서 category==='비급여'
@@ -1601,8 +1601,7 @@ function renderDashboard(){
       ...allPt.filter(p=>taCats2.includes(p.visitType)&&!taLedgerRows.some(r=>r.chartNumber===p.chartNumber)).map(p=>`<tr><td style="font-family:monospace;font-size:12px">${p.chartNumber||'-'}</td><td>${p.name}</td><td>${p.phone||'-'}</td><td><span class="badge badge-amber">${p.visitType}</span></td><td style="font-size:11px;color:#6b7280">환자목록</td></tr>`)
       ].join('')));
   } else if(mo==='noAppt'){
-    // 미예약 = 예약날짜가 없거나, 예약날짜가 td(선택날짜)와 동일한 행
-    const list=todayPtRows.filter(r=>!r.appointmentDate||(r.appointmentDate===td));
+    const list=noApptList;
     mHtml=mWrap(`📭 ${fmtDot(td)} 미예약 — ${list.length}명`,`
       <div style="font-size:12px;color:#6b7280;margin-bottom:10px">
         💡 예약날짜 없거나 당일 예약(${fmtDot(td)}) 포함
