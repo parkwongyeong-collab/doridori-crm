@@ -346,7 +346,7 @@ var S={
   patients:[],ledger:{},employees:['김간호','이실장','박치료사'],
   schedule:{},messageLogs:[],inpatients:{},happycalls:{},
   ledgerDate:todayStr(),calMonth:todayStr().slice(0,7),scheduleMonth:todayStr().slice(0,7),happycallDate:todayStr(),
-  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,
+  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,
   user:{name:'관리자',email:'pwk2956@naver.com',role:'admin'},
   solapiKey:'',solapiSecret:'',solapiSender:'',
   supabaseUrl:'https://mzdxunkqewctmognveqo.supabase.co',supabaseKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA',sbConnected:false,
@@ -1819,6 +1819,14 @@ function renderPatients(){
     return sortDir==='asc'?cmp:-cmp;
   });
   const filtered=q?sorted.filter(p=>p.name.toLowerCase().includes(q)||p.chartNumber.toLowerCase().includes(q)||(p.phone||'').includes(q)):sorted;
+  // 검색어 바뀌면 첫 페이지로
+  const PAGE_SIZE=100;
+  if(q&&S.ptPage>1) S.ptPage=1;
+  const totalPages=Math.max(1,Math.ceil(filtered.length/PAGE_SIZE));
+  if(S.ptPage>totalPages) S.ptPage=totalPages;
+  const pageStart=(S.ptPage-1)*PAGE_SIZE;
+  const pageEnd=pageStart+PAGE_SIZE;
+  const paginated=filtered.slice(pageStart,pageEnd);
 
   // 임포트 미리보기 모달
   let importModal='';
@@ -1902,12 +1910,12 @@ function renderPatients(){
       </div>
     </div>
     <div class="action-bar">
-      <input class="form-inp" style="max-width:240px" placeholder="이름 / 차트번호 / 전화번호 검색" value="${S.searchQ.replace(/"/g,'&quot;')}" oninput="S.searchQ=this.value;render()">
+      <input class="form-inp" style="max-width:240px" placeholder="이름 / 차트번호 / 전화번호 검색" value="${S.searchQ.replace(/"/g,'&quot;')}" oninput="S.searchQ=this.value;S.ptPage=1;render()">
       <div style="display:inline-flex;border:1px solid #d1d5db;border-radius:8px;overflow:hidden;background:#fff">
-        <button class="btn" style="border:none;border-radius:0;border-right:1px solid #e5e7eb;font-size:12px;padding:6px 10px;${S.ptSortKey==='chart'?'background:#eff6ff;color:#2563eb;font-weight:700':''}" onclick="if(S.ptSortKey==='chart'){S.ptSortDir=S.ptSortDir==='asc'?'desc':'asc';}else{S.ptSortKey='chart';S.ptSortDir='asc';}render()">
+        <button class="btn" style="border:none;border-radius:0;border-right:1px solid #e5e7eb;font-size:12px;padding:6px 10px;${S.ptSortKey==='chart'?'background:#eff6ff;color:#2563eb;font-weight:700':''}" onclick="if(S.ptSortKey==='chart'){S.ptSortDir=S.ptSortDir==='asc'?'desc':'asc';}else{S.ptSortKey='chart';S.ptSortDir='asc';}S.ptPage=1;render()">
           차트 ${S.ptSortKey==='chart'?(S.ptSortDir==='asc'?'↑':'↓'):'↕'}
         </button>
-        <button class="btn" style="border:none;border-radius:0;font-size:12px;padding:6px 10px;${S.ptSortKey==='name'?'background:#eff6ff;color:#2563eb;font-weight:700':''}" onclick="if(S.ptSortKey==='name'){S.ptSortDir=S.ptSortDir==='asc'?'desc':'asc';}else{S.ptSortKey='name';S.ptSortDir='asc';}render()">
+        <button class="btn" style="border:none;border-radius:0;font-size:12px;padding:6px 10px;${S.ptSortKey==='name'?'background:#eff6ff;color:#2563eb;font-weight:700':''}" onclick="if(S.ptSortKey==='name'){S.ptSortDir=S.ptSortDir==='asc'?'desc':'asc';}else{S.ptSortKey='name';S.ptSortDir='asc';}S.ptPage=1;render()">
           이름 ${S.ptSortKey==='name'?(S.ptSortDir==='asc'?'↑':'↓'):'↕'}
         </button>
       </div>
@@ -1932,11 +1940,11 @@ function renderPatients(){
         <!-- PC: 일반 테이블 / 모바일: 카드 -->
         <table class="mobile-card-table"><thead><tr>
           ${S.ptSelectMode?'<th style="width:36px"><input type="checkbox" onchange="if(this.checked){S.ptSelected=new Set([...filtered.map(p=>p.id)]);}else{S.ptSelected=new Set();}render()"></th>':''}
-          <th style="cursor:pointer;user-select:none" onclick="if(S.ptSortKey==='chart'){S.ptSortDir=S.ptSortDir==='asc'?'desc':'asc';}else{S.ptSortKey='chart';S.ptSortDir='asc';}render()">차트번호 ${S.ptSortKey==='chart'?(S.ptSortDir==='asc'?'↑':'↓'):'↕'}</th>
-          <th style="cursor:pointer;user-select:none" onclick="if(S.ptSortKey==='name'){S.ptSortDir=S.ptSortDir==='asc'?'desc':'asc';}else{S.ptSortKey='name';S.ptSortDir='asc';}render()">이름 ${S.ptSortKey==='name'?(S.ptSortDir==='asc'?'↑':'↓'):'↕'}</th>
+          <th style="cursor:pointer;user-select:none" onclick="if(S.ptSortKey==='chart'){S.ptSortDir=S.ptSortDir==='asc'?'desc':'asc';}else{S.ptSortKey='chart';S.ptSortDir='asc';}S.ptPage=1;render()">차트번호 ${S.ptSortKey==='chart'?(S.ptSortDir==='asc'?'↑':'↓'):'↕'}</th>
+          <th style="cursor:pointer;user-select:none" onclick="if(S.ptSortKey==='name'){S.ptSortDir=S.ptSortDir==='asc'?'desc':'asc';}else{S.ptSortKey='name';S.ptSortDir='asc';}S.ptPage=1;render()">이름 ${S.ptSortKey==='name'?(S.ptSortDir==='asc'?'↑':'↓'):'↕'}</th>
           <th>성별</th><th>전화번호</th><th>구분</th><th>내원경로</th><th>치료부위</th><th>등록일</th><th>관리</th>
         </tr></thead><tbody>
-        ${filtered.map(p=>`<tr style="${S.ptSelected.has(p.id)?'background:#faf5ff;':''}">
+        ${paginated.map(p=>`<tr style="${S.ptSelected.has(p.id)?'background:#faf5ff;':''}">
           ${S.ptSelectMode?`<td style="width:36px;text-align:center"><input type="checkbox" ${S.ptSelected.has(p.id)?'checked':''} onchange="if(this.checked)S.ptSelected.add('${p.id}');else S.ptSelected.delete('${p.id}');render()"></td>`:''}
           <td data-label="차트번호" style="font-family:monospace;font-size:12px;color:#6b7280">${p.chartNumber||'-'}</td>
           <td data-label="이름" style="font-weight:600">${p.name}</td>
@@ -1953,7 +1961,16 @@ function renderPatients(){
             </div>
           </td>
         </tr>`).join('')}</tbody></table>
-      </div>`}
+      </div>
+      ${totalPages>1?`<div style="display:flex;align-items:center;justify-content:center;gap:6px;padding:12px;flex-wrap:wrap">
+        <button class="btn btn-sm" ${S.ptPage<=1?'disabled':''} onclick="S.ptPage=1;render()">◀◀</button>
+        <button class="btn btn-sm" ${S.ptPage<=1?'disabled':''} onclick="S.ptPage--;render()">◀</button>
+        <span style="font-size:13px;font-weight:600;padding:0 8px">${S.ptPage} / ${totalPages} 페이지</span>
+        <span style="font-size:12px;color:#9ca3af">(${pageStart+1}~${Math.min(pageEnd,filtered.length)}번째)</span>
+        <button class="btn btn-sm" ${S.ptPage>=totalPages?'disabled':''} onclick="S.ptPage++;render()">▶</button>
+        <button class="btn btn-sm" ${S.ptPage>=totalPages?'disabled':''} onclick="S.ptPage=${totalPages};render()">▶▶</button>
+      </div>`:''}
+      `}
     </div>
   </div>`;
 }
@@ -2864,7 +2881,7 @@ function renderMessages(){
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
       <div class="section-card" style="padding:20px">
         <div class="section-title" style="margin-bottom:14px">환자 선택</div>
-        <input class="form-inp" style="margin-bottom:10px" placeholder="환자 검색..." oninput="S.searchQ=this.value;render()" value="${S.searchQ.replace(/"/g,'&quot;')}">
+        <input class="form-inp" style="margin-bottom:10px" placeholder="환자 검색..." oninput="S.searchQ=this.value;S.ptPage=1;render()" value="${S.searchQ.replace(/"/g,'&quot;')}">
         <div style="max-height:300px;overflow-y:auto">
         ${S.searchQ?searchPt(S.searchQ).map(p=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;cursor:pointer;${S.msgPatientId===p.id?'background:#eff6ff;':''}" onclick="S.msgPatientId='${p.id}';S.searchQ='';render()">
           <div><div style="font-weight:500;font-size:13px">${p.name}</div><div style="font-size:11px;color:#6b7280">${p.chartNumber} · ${p.phone||''}</div></div>
