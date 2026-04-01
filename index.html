@@ -127,7 +127,7 @@ tr:hover td{background:#fdfdfd}
 .sum-label{font-size:11px;color:#6b7280;margin-bottom:2px}
 .sum-val{font-size:14px;font-weight:600}
 .sum-item.total .sum-val{color:#2563eb}
-.tci{width:100%;padding:4px 6px;font-size:12px;border:none;background:transparent;color:#111827;font-family:inherit;outline:none}
+.tci{width:100%;min-width:50px;padding:4px 6px;font-size:12px;border:none;background:transparent;color:#111827;font-family:inherit;outline:none}
 .tci:focus{background:#eff6ff;border-radius:3px}
 .tci-num{text-align:right}
 .row-acts{display:flex;align-items:center;gap:3px;justify-content:center;flex-shrink:0}
@@ -269,7 +269,7 @@ tr:hover td{background:#fdfdfd}
 'use strict';
 // ── 상수 ──────────────────────────────────────────────
 const VISIT_TYPES=['신환','재진','ta','ta초진','ta일반','ta추나','6개월재초진','건보추나'];
-const CATEGORIES=['신환','ta초진','ta','재진','6개월재초진','건보추나','ta일반','ta추나','비급여'];
+const CATEGORIES=['재진','신환','ta초진','ta','6개월재초진','건보추나','ta일반','ta추나','비급여'];
 
 // 비급여 처방 프리셋 (처방명, 기간일수)
 // ── 사용자 계정 ─────────────────────────────────────
@@ -1768,11 +1768,12 @@ function renderLedger(){
   const card=rows.reduce((s,r)=>s+(+r.cardAmount||0),0);
 
   function buildRow(r,idx){
-    return`<tr id="lr_${r.id}">
+    const _rowBg={'재진':'#f3f4f6','신환':'#fefce8','ta':'#ecfeff','ta초진':'#ecfeff','ta일반':'#ecfeff','ta추나':'#ecfeff','6개월재초진':'#fff7ed'}[r.category]||'';
+    return`<tr id="lr_${r.id}" style="${_rowBg?'background:'+_rowBg+';':''}">
       <td style="text-align:center;font-size:12px;color:#9ca3af;width:36px">${idx+1}</td>
       <td style="width:90px;position:relative">
         <div class="ac-wrap">
-          <input class="tci" style="font-family:monospace" placeholder="차트번호"
+          <input class="tci" style="font-family:monospace;min-width:75px" placeholder="차트번호"
             data-row-id="${r.id}" data-field="chartNumber"
             value="${(r.chartNumber||'').replace(/"/g,'&quot;')}"
             oninput="updLedgerAC('${d}','${r.id}',this.value)"
@@ -1781,7 +1782,7 @@ function renderLedger(){
         </div>
       </td>
       <td style="width:80px"><input class="tci" placeholder="성명" data-row-id="${r.id}" data-field="patientName" value="${(r.patientName||'').replace(/"/g,'&quot;')}" oninput="updLR('${d}','${r.id}','patientName',this.value)"></td>
-      <td style="width:80px"><input class="tci tci-num" placeholder="0" value="${r.cashAmount||''}" oninput="updLR('${d}','${r.id}','cashAmount',this.value)"></td>
+      <td style="width:80px"><input class="tci tci-num" style="min-width:70px" placeholder="0" value="${r.cashAmount||''}" oninput="updLR('${d}','${r.id}','cashAmount',this.value)"></td>
       <td style="width:80px"><input class="tci tci-num" placeholder="0" value="${r.transferAmount||''}" oninput="updLR('${d}','${r.id}','transferAmount',this.value)"></td>
       <td style="width:80px"><input class="tci tci-num" placeholder="0" value="${r.cardAmount||''}" oninput="updLR('${d}','${r.id}','cardAmount',this.value)"></td>
       <td style="width:70px"><input class="tci" placeholder="매입사" value="${(r.vendor||'').replace(/"/g,'&quot;')}" oninput="updLR('${d}','${r.id}','vendor',this.value)"></td>
@@ -1848,8 +1849,8 @@ function renderLedger(){
       <div class="sum-item total"><div class="sum-label">총합계</div><div class="sum-val">${fmtKrw(cash+transfer+card)}</div></div>
       <div class="sum-item"><div class="sum-label">총건수</div><div class="sum-val">${rows.length}건</div></div>
     </div>
-    <div style="overflow-x:auto;flex:1">
-      <table><thead><tr>
+    <div style="overflow-x:auto;flex:1;-webkit-overflow-scrolling:touch">
+      <table style="min-width:1200px"><thead><tr>
         <th style="width:36px">#</th><th>차트번호</th><th>성명</th><th>현금</th><th>계좌이체</th><th>카드</th><th>매입사</th><th>비급여</th><th>구분</th><th>예약날짜</th><th>예약시간</th><th>안내구분</th><th>메모</th><th style="text-align:center">관리</th>
       </tr></thead><tbody>
       ${rows.length?rows.map(buildRow).join(''):`<tr><td colspan="14"><div class="no-data">행 추가 버튼으로 내역을 입력하세요</div></td></tr>`}
