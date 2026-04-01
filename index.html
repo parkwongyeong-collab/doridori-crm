@@ -1411,8 +1411,8 @@ function renderDashboard(){
     });
     return all.sort((a,b)=>(a.appointmentTime||'').localeCompare(b.appointmentTime||''));
   })();
-  // 내일 예약 = 보고서 선택 날짜 +1일 기준
-  const tmrDate=addDays(td,1);
+  // 내일 예약 = 항상 실제 오늘+1 (보고서 날짜 무관)
+  const tmrDate=addDays(realToday,1);
   const tmrAppts=(()=>{
     const all=[];
     Object.entries(S.ledger).forEach(([ledgerDate,dayRows])=>{
@@ -1768,7 +1768,7 @@ function renderLedger(){
   const card=rows.reduce((s,r)=>s+(+r.cardAmount||0),0);
 
   function buildRow(r,idx){
-    const _rowBg={'재진':'#f3f4f6','신환':'#fefce8','ta':'#ecfeff','ta초진':'#ecfeff','ta일반':'#ecfeff','ta추나':'#ecfeff','6개월재초진':'#fff7ed'}[r.category]||'';
+    const _rowBg={'재진':'#cbd5e1','신환':'#fde047','ta':'#67e8f9','ta초진':'#67e8f9','ta일반':'#67e8f9','ta추나':'#67e8f9','6개월재초진':'#fb923c'}[r.category]||'';
     return`<tr id="lr_${r.id}" style="${_rowBg?'background:'+_rowBg+';':''}">
       <td style="text-align:center;font-size:12px;color:#9ca3af;width:36px">${idx+1}</td>
       <td style="width:90px;position:relative">
