@@ -1732,6 +1732,7 @@ function renderDashboard(){
         <td data-label="구분">${r.category?`<span class="badge badge-gray">${r.category}</span>`:'-'}</td>
         <td data-label="메모"><input class="minp" value="${(r.memo||'').replace(/"/g,'&quot;')}" placeholder="메모..." onchange="updMemo('${r.ledgerDate||td}','${r.id}',this.value)"></td>
         <td data-label="노쇼"><button class="noshow-btn${r.noShow?' active':''}" onclick="togNS('${r.ledgerDate||td}','${r.id}')" style="${r.noShow?'background:#fef2f2;color:#dc2626;border-color:#fca5a5;font-weight:700':''}">${r.noShow?'✓ 노쇼처리':'노쇼'}</button></td>
+        <td data-label="원본"><button class="btn btn-sm" style="font-size:11px;padding:2px 8px;white-space:nowrap;background:#f0fdf4;color:#059669;border-color:#6ee7b7" onclick="S.ledgerDate='${r.ledgerDate||td}';nav('ledger')" title="${r.ledgerDate||td} 일계표로 이동">📋${(r.ledgerDate||td).slice(5).replace('-','/')}</button></td>
       </tr>`).join('')}</tbody></table></div>`}
     </div>
     ${ystNoShows.length>0?`<div class="section-card danger-card">
@@ -1933,13 +1934,13 @@ function renderCalendar(){
   const prevDays=new Date(y,mo-1,0).getDate();
   // 모든 일계표에서 appointmentDate 기준으로 달력에 표시
   const allAppts={};
-  Object.entries(S.ledger).forEach(([,rs])=>{
+  Object.entries(S.ledger).forEach(([ledgerDate,rs])=>{
     (rs||[]).filter(r=>r.appointmentDate&&!r.noShow).forEach(r=>{
       const d=r.appointmentDate;
       if(!allAppts[d])allAppts[d]=[];
-      // 중복 방지 (같은 환자 같은 날 중복 표시 제거)
+      // 중복 방지 + ledgerDate(원본 일계표 날짜) 포함
       if(!allAppts[d].some(x=>x.chartNumber===r.chartNumber&&x.appointmentTime===r.appointmentTime))
-        allAppts[d].push(r);
+        allAppts[d].push({...r, ledgerDate});
     });
   });
   const cells=[];
@@ -1978,10 +1979,17 @@ function renderCalendar(){
       </div>
       ${selDate?`<div class="section-card" style="height:fit-content">
         <div class="section-hdr"><div class="section-title">${fmtDot(selDate)}</div><span class="badge badge-blue">${selAppts.length}명</span></div>
-        ${selAppts.length===0?'<div class="no-data">예약 없음</div>':`<div style="overflow-y:auto;max-height:500px"><table><thead><tr><th>이름</th><th>시간</th><th>구분</th></tr></thead><tbody>
-        ${selAppts.map(r=>`<tr><td style="font-weight:600">${r.patientName||'-'}</td><td style="font-size:12px">${r.appointmentTime||'-'}</td><td>${r.category?`<span class="badge badge-gray">${r.category}</span>`:'-'}</td></tr>`).join('')}
+        ${selAppts.length===0?'<div class="no-data">예약 없음</div>':`<div style="overflow-y:auto;max-height:500px"><table style="font-size:13px;width:100%"><thead><tr><th>이름</th><th>시간</th><th>구분</th><th>원본</th></tr></thead><tbody>
+        ${selAppts.map(r=>`<tr>
+          <td style="font-weight:600">${r.patientName||'-'}</td>
+          <td style="font-size:12px">${r.appointmentTime||'-'}</td>
+          <td>${r.category?`<span class="badge badge-gray">${r.category}</span>`:'-'}</td>
+          <td><button class="btn btn-sm" style="font-size:11px;padding:2px 8px;white-space:nowrap" onclick="S.ledgerDate='${r.ledgerDate||selDate}';nav('ledger')" title="${r.ledgerDate||selDate} 일계표로 이동">📋${r.ledgerDate?r.ledgerDate.slice(5).replace('-','/'):'당일'}</button></td>
+        </tr>`).join('')}
         </tbody></table></div>`}
-        <div style="padding:12px"><button class="btn btn-sm" onclick="S.ledgerDate='${selDate}';nav('ledger')">${I.ledger} 이 날 일계표</button></div>
+        <div style="padding:12px;display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-sm" onclick="S.ledgerDate='${selDate}';nav('ledger')">${I.ledger} 당일(${selDate.slice(5).replace('-','/')}) 일계표</button>
+        </div>
       </div>`:''}
     </div>
   </div>`;
