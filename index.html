@@ -1411,8 +1411,8 @@ function renderDashboard(){
     });
     return all.sort((a,b)=>(a.appointmentTime||'').localeCompare(b.appointmentTime||''));
   })();
-  // 내일 예약 = 보고서 선택 날짜(td) +1일
-  const tmrDate=addDays(td,1);
+  // 내일 예약 = 항상 실제 오늘+1 (보고서 날짜 무관)
+  const tmrDate=addDays(td,1); // 보고서 날짜 기준 다음날
   const tmrAppts=(()=>{
     const all=[];
     Object.entries(S.ledger).forEach(([ledgerDate,dayRows])=>{
@@ -1450,8 +1450,7 @@ function renderDashboard(){
   const todayPtCount=todayPtRows.length;
   const todayBigubyeoRows=todayPtRows.filter(r=>r.note&&r.note.trim());
   // 미예약 = 예약날짜 없거나 당일 예약(선택날짜와 동일)
-  // 미예약 = 예약날짜가 없는 행 (당일 워크인)
-  const noApptList=todayPtRows.filter(r=>!r.appointmentDate);
+  const noApptList=todayPtRows.filter(r=>!r.appointmentDate||(r.appointmentDate===td));
   const noApptCount=noApptList.length;
   const totalRev=todayRows.reduce((s,r)=>s+(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0),0);
 
@@ -1547,7 +1546,7 @@ function renderDashboard(){
     ${Object.entries(bv).map(([k,v])=>`<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f3f4f6;font-size:13px"><span style="color:#6b7280">${k}</span><span style="font-weight:600">${fmtKrw(v)}</span></div>`).join('')}
     <div style="margin-top:14px;background:#eff6ff;border-radius:8px;padding:14px;display:flex;justify-content:space-between;align-items:center"><span style="font-weight:600;color:#1d4ed8">총합계</span><span style="font-size:20px;font-weight:700;color:#1d4ed8">${fmtKrw(cash+tr+card)}</span></div>`);
   } else if(mo==='tomorrow'){
-    mHtml=mWrap(`📅 내일(${fmtDot(tmrDate)}) 예약 — ${tmrAppts.length}명`,mTbl(['차트번호','이름','예약시간','구분','메모','노쇼'],tmrAppts.map(r=>`<tr class="${r.noShow?'noshow-row':''}">
+    mHtml=mWrap(`📅 내일(${tmrDate}) 예약 — ${tmrAppts.length}명`,mTbl(['차트번호','이름','예약시간','구분','메모','노쇼'],tmrAppts.map(r=>`<tr class="${r.noShow?'noshow-row':''}">
       <td style="font-family:monospace;font-size:12px">${r.chartNumber||'-'}</td>
       <td style="font-weight:600">${r.patientName||'-'}</td>
       <td>${r.appointmentTime||'-'}</td>
