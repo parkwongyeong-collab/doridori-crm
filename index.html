@@ -120,7 +120,7 @@ tr:hover td{background:#fdfdfd}
 .tag{display:inline-block;padding:3px 9px;border-radius:5px;font-size:11px;border:1px solid #e5e7eb;margin:2px;cursor:pointer;user-select:none;color:#374151;transition:all .15s}
 .tag.active{background:#dbeafe;color:#2563eb;border-color:#93c5fd}
 /* 일계표 */
-.ledger-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;border-bottom:1px solid #e5e7eb;background:#fff;flex-wrap:wrap;gap:10px}
+.ledger-hdr{display:flex;align-items:center;justify-content:flex-start;padding:14px 20px;border-bottom:1px solid #e5e7eb;background:#fff;flex-wrap:wrap;gap:10px}
 .sum-bar{display:flex;background:#f9fafb;border-bottom:1px solid #e5e7eb;flex-wrap:wrap}
 .sum-item{flex:1;min-width:100px;padding:10px 16px;border-right:1px solid #e5e7eb}
 .sum-item:last-child{border-right:none}
@@ -1830,18 +1830,14 @@ function renderLedger(){
 
   return`<div style="min-height:100vh;display:flex;flex-direction:column">
     <div class="ledger-hdr">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div class="page-title" style="margin:0">📊 일계표</div>
-        <span style="font-size:12px;color:#6b7280">일별 수납 내역 관리</span>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-        <div style="display:inline-flex;align-items:center">
-          <div class="date-nav-wrap">
-            <button class="date-nav-btn" onmousedown="event.preventDefault();btnDatePrev()" ontouchstart="event.preventDefault();btnDatePrev()">&#8249;</button>
-            <div class="date-nav-center" onmousedown="event.preventDefault();openDatePicker('datepicker-ledger2',this)"><span id="disp-ledger-date">${fmtNav(d)}</span></div>
-            <button class="date-nav-btn" onmousedown="event.preventDefault();btnDateNext()" ontouchstart="event.preventDefault();btnDateNext()">&#8250;</button>
-          </div>
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;width:100%">
+        <span style="font-size:17px;font-weight:700;margin-right:4px">📊 일계표</span>
+        <div class="date-nav-wrap">
+          <button class="date-nav-btn" onmousedown="event.preventDefault();btnDatePrev()" ontouchstart="event.preventDefault();btnDatePrev()">&#8249;</button>
+          <div class="date-nav-center" onmousedown="event.preventDefault();openDatePicker('datepicker-ledger2',this)"><span id="disp-ledger-date">${fmtNav(d)}</span></div>
+          <button class="date-nav-btn" onmousedown="event.preventDefault();btnDateNext()" ontouchstart="event.preventDefault();btnDateNext()">&#8250;</button>
         </div>
+        <button class="btn btn-sm" onclick="S.ledgerDate=todayStr();render()" style="background:#2563eb;color:#fff;border-color:#2563eb">오늘</button>
         <button class="btn btn-sm" onclick="addLR('${d}')">${I.plus} 행 추가</button>
         <input type="date" id="datepicker-ledger" value="${d}" onchange="setDate(this.value)" style="position:fixed;top:-300px;left:-300px;width:1px;height:1px;opacity:0;pointer-events:none;">
         <input type="date" id="datepicker-ledger2" value="${d}" onchange="setDate(this.value)" style="position:fixed;top:-300px;left:-300px;width:1px;height:1px;opacity:0;pointer-events:none;">
