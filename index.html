@@ -353,7 +353,7 @@ var S={
   patients:[],ledger:{},employees:['김간호','이실장','박치료사'],
   schedule:{},messageLogs:[],inpatients:{},happycalls:{},
   ledgerDate:todayStr(),calMonth:todayStr().slice(0,7),scheduleMonth:todayStr().slice(0,7),happycallDate:todayStr(),
-  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,
+  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',
   user:{name:'관리자',email:'pwk2956@naver.com',role:'admin'},
   solapiKey:'',solapiSecret:'',solapiSender:'',
   supabaseUrl:'https://mzdxunkqewctmognveqo.supabase.co',supabaseKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA',sbConnected:false,
@@ -999,6 +999,70 @@ function nav(p){S.page=p;S.editId=null;S.modal=null;S.searchQ='';S.ledgerAcOpen=
 
 // 환자 검색 - 포커스 유지하면서 테이블만 업데이트
 var _ptSearchTimer=null;
+// ── 당일 추가예약 함수 ─────────────────────────────
+window.addQuickAppt=function(){
+  if(!S.quickAppts) S.quickAppts=[];
+  S.quickAppts.push({id:uid(),chartNumber:'',patientName:'',appointmentTime:'',category:'재진',memo:''});
+  render();
+};
+window.updQuick=function(i,field,val){
+  if(!S.quickAppts||!S.quickAppts[i]) return;
+  S.quickAppts[i][field]=val;
+};
+window.delQuick=function(i){
+  if(!S.quickAppts) return;
+  S.quickAppts.splice(i,1);
+  render();
+};
+window.updQuickAC=function(i,val){
+  if(!S.quickAppts||!S.quickAppts[i]) return;
+  S.quickAppts[i].chartNumber=val;
+  // 자동완성
+  const box=document.getElementById('qac_'+i);
+  if(!box) return;
+  const q=val.toLowerCase();
+  if(!q){box.style.display='none';return;}
+  const matches=S.patients.filter(p=>(p.chartNumber||'').toLowerCase().startsWith(q)||(p.name||'').toLowerCase().includes(q)).slice(0,8);
+  if(!matches.length){box.style.display='none';return;}
+  box.innerHTML=matches.map(p=>`<div class="ac-item" onmousedown="pickQuickAC(${i},'${p.chartNumber}','${p.name.replace(/'/g,"\\'")}','${p.visitType||''}')">
+    <span style="font-family:monospace;color:#6b7280">${p.chartNumber}</span> ${p.name}</div>`).join('');
+  box.style.display='block';
+};
+window.hideQuickAC=function(i){
+  setTimeout(()=>{const b=document.getElementById('qac_'+i);if(b)b.style.display='none';},200);
+};
+window.pickQuickAC=function(i,chart,name,vt){
+  if(!S.quickAppts||!S.quickAppts[i]) return;
+  S.quickAppts[i].chartNumber=chart;
+  S.quickAppts[i].patientName=name;
+  if(!S.quickAppts[i].category) S.quickAppts[i].category=vt||'재진';
+  render();
+};
+window.saveQuickAppts=async function(){
+  if(!S.quickAppts||!S.quickAppts.length) return;
+  const today=todayStr();
+  const valid=S.quickAppts.filter(r=>r.patientName||r.chartNumber);
+  if(!valid.length){showToast('입력된 예약이 없습니다','err');return;}
+  // 오늘 일계표에 행 추가 (각 행의 appointmentDate 사용)
+  const existing=getLedger(today);
+  const newRows=valid.map(r=>({
+    ...newLedgerRow(),
+    id:uid(),
+    chartNumber:r.chartNumber||'',
+    patientName:r.patientName||'',
+    appointmentTime:r.appointmentTime||'',
+    appointmentDate:r.appointmentDate||today,
+    guidanceType:r.guidanceType||'',
+    category:r.category||'재진',
+    memo:r.memo||''
+  }));
+  saveLedger(today, [...existing, ...newRows]);
+  S.quickAppts=[];
+  const dates=[...new Set(newRows.map(r=>r.appointmentDate))].join(', ');
+  showToast('✅ '+newRows.length+'건 예약 저장! ('+dates+')');
+  render();
+};
+
 window.ptSearchInput=function(val){
   S.searchQ=val;
   S.ptPage=1;
@@ -1747,6 +1811,64 @@ function renderDashboard(){
         <td style="font-size:12px">${r.appointmentTime||'-'}</td>
         <td style="color:#6b7280;font-size:12px">${r.memo||''}</td>
       </tr>`).join('')}</tbody></table></div></div>`:''}
+    <div class="section-card">
+      <div class="section-hdr" style="flex-wrap:wrap;gap:8px">
+        <div class="section-title">📞 당일 추가예약</div>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-sm" style="background:#2563eb;color:#fff;border-color:#2563eb" onclick="addQuickAppt()">+ 행 추가</button>
+          ${S.quickAppts&&S.quickAppts.length>0?`<button class="btn btn-sm" style="background:#059669;color:#fff;border-color:#059669" onclick="saveQuickAppts()">💾 저장</button>`:''}
+        </div>
+      </div>
+      ${!S.quickAppts||S.quickAppts.length===0?
+        '<div class="no-data" style="font-size:13px">+ 행 추가 버튼으로 전화/네이버 예약을 추가하세요</div>':`
+        <div style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+        <table style="min-width:900px"><thead><tr>
+          <th style="width:36px">#</th>
+          <th>차트번호</th><th>성명</th><th>구분</th>
+          <th>예약날짜</th><th>예약시간</th><th>안내</th><th>메모</th><th>관리</th>
+        </tr></thead><tbody>
+        ${(S.quickAppts||[]).map((r,i)=>{
+          const _bg={'재진':'#cbd5e1','신환':'#fde047','ta':'#67e8f9','ta초진':'#67e8f9','ta일반':'#67e8f9','ta추나':'#67e8f9','6개월재초진':'#fb923c'}[r.category]||'';
+          return`<tr style="${_bg?'background:'+_bg+';':''}">
+            <td style="text-align:center;font-size:12px;color:#9ca3af">${i+1}</td>
+            <td style="width:90px;position:relative">
+              <div class="ac-wrap">
+                <input class="tci" style="font-family:monospace;min-width:75px" placeholder="차트번호"
+                  value="${(r.chartNumber||'').replace(/"/g,'&quot;')}"
+                  oninput="updQuickAC(${i},this.value)" onblur="hideQuickAC(${i})">
+                <div id="qac_${i}" class="ac-list" style="display:none"></div>
+              </div>
+            </td>
+            <td style="width:80px"><input class="tci" placeholder="성명" value="${(r.patientName||'').replace(/"/g,'&quot;')}" oninput="updQuick(${i},'patientName',this.value)"></td>
+            <td style="min-width:90px">
+              <select class="tci" onchange="updQuick(${i},'category',this.value)">
+                <option value="">구분</option>
+                ${CATEGORIES.map(c=>`<option ${r.category===c?'selected':''}>${c}</option>`).join('')}
+              </select>
+            </td>
+            <td style="width:110px"><input type="date" class="tci" style="font-size:11px" value="${r.appointmentDate||td}" onchange="updQuick(${i},'appointmentDate',this.value)"></td>
+            <td style="width:90px">
+              <select class="tci" onchange="updQuick(${i},'appointmentTime',this.value)">
+                <option value="">시간</option>
+                ${TIME_OPT.map(t=>`<option ${r.appointmentTime===t?'selected':''}>${t}</option>`).join('')}
+              </select>
+            </td>
+            <td style="width:80px">
+              <select class="tci" onchange="updQuick(${i},'guidanceType',this.value)">
+                <option value="">안내</option>
+                ${GUIDANCE.map(g=>`<option ${r.guidanceType===g?'selected':''}>${g}</option>`).join('')}
+              </select>
+            </td>
+            <td><input class="tci" placeholder="메모" value="${(r.memo||'').replace(/"/g,'&quot;')}" oninput="updQuick(${i},'memo',this.value)"></td>
+            <td style="width:70px">
+              <div class="row-acts">
+                <button class="ico-btn dl-btn" title="삭제" onclick="delQuick(${i})">${I.trash}</button>
+              </div>
+            </td>
+          </tr>`;}).join('')}
+        </tbody></table></div>`}
+    </div>
+
     <div class="section-card">
       <div class="section-hdr">
         <div class="section-title">${I.msg} 알림톡 / SMS 발송 내역</div>
