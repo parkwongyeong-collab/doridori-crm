@@ -1018,7 +1018,7 @@ function getWeekData(wk){
   return all;
 }
 
-function nav(p){S.page=p;S.editId=null;S.modal=null;S.searchQ='';S.ledgerAcOpen=null;S.ptPage=1;render()}
+function nav(p){S.page=p;S.editId=null;S.modal=null;S.searchQ='';S.ledgerAcOpen=null;S.ptPage=1;if(p==='dashboard')S.ledgerDate=todayStr();render()}
 
 // 환자 검색 - 포커스 유지하면서 테이블만 업데이트
 var _ptSearchTimer=null;
