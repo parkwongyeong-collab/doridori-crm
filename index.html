@@ -328,9 +328,12 @@ const BIGUBYEO_PRESETS=[
   {name:'공진단',days:10,label:'공진단 10일'},
   {name:'공진단',days:30,label:'공진단 30일'},
 ];
-const SHIFTS=['근무','휴무','월차','연차','조퇴','기타'];
-const SHIFT_COLORS={근무:'#3b82f6',휴무:'#9ca3af',월차:'#10b981',연차:'#f59e0b',조퇴:'#ef4444',기타:'#8b5cf6'};
-const REFERRAL=['지인소개','인터넷','SNS','현수막','TV/라디오','기타'];
+const BIGUBYEO2_PRESETS=[
+  {label:'약침'}, {label:'진단서'}, {label:'보폐고'}, {label:'청인유쾌환'}, {label:'TBA'},
+];
+const SHIFTS=['근무','전반','후반','휴무','기타','병가'];
+const SHIFT_COLORS={근무:'#3b82f6',전반:'#8b5cf6',후반:'#ec4899',휴무:'#9ca3af',기타:'#f59e0b',병가:'#ef4444'};
+const REFERRAL=['간판 집근처','가족소개','지인소개','네이버','기타','플레이스'];
 const TREATMENT=['두통','안통','턱관절','경추통증','어깨통증','가슴통증','등통증','옆구리통증','허리통증','골반통증','무릎통증','종아리통증','발목통증','복숭아뼈통증','발바닥통증','발가락통증','엘보우통증','손목통증','손가락통증','소화불량','일반한약','공진단','다이어트'];
 const GUIDANCE=['전화','문자','카카오','직접','없음'];
 const TIME_OPT=(()=>{const t=[];for(let h=8;h<=21;h++){t.push(p2(h)+':00');if(h<21)t.push(p2(h)+':30')}return t})();
@@ -499,8 +502,8 @@ function markMyChange(data){
 // ── 매핑 함수 ──────────────────────────────────────
 function ptToRow(p){return{id:p.id,chart_number:p.chartNumber||'',name:p.name||'',gender:p.gender||'남',phone:p.phone||'',visit_type:p.visitType||'',referral_path:p.referralPath||'',treatment_area:JSON.stringify(p.treatmentArea||[]),memo:p.memo||'',created_at:p.createdAt||new Date().toISOString()};}
 function rowToPt(r){return{id:r.id,chartNumber:r.chart_number||'',name:r.name||'',gender:r.gender||'남',phone:r.phone||'',visitType:r.visit_type||'',referralPath:r.referral_path||'',treatmentArea:Array.isArray(r.treatment_area)?r.treatment_area:(typeof r.treatment_area==='string'?JSON.parse(r.treatment_area||'[]'):[]),memo:r.memo||'',createdAt:r.created_at||''};}
-function ledRowToSB(r,date){return{id:r.id,date:date,chart_number:r.chartNumber||'',patient_name:r.patientName||'',cash_amount:+r.cashAmount||0,transfer_amount:+r.transferAmount||0,card_amount:+r.cardAmount||0,vendor:r.vendor||'',note:r.note||'',note_date:r.noteDate||'',note_days:r.noteDays||0,category:r.category||'',appointment_date:r.appointmentDate||'',appointment_time:r.appointmentTime||'',guidance_type:r.guidanceType||'',memo:r.memo||'',no_show:!!r.noShow,prescription:r.prescription||'',prescription_date:r.prescriptionDate||'',prescription_days:r.prescriptionDays||0};}
-function sbToLedRow(r){return{id:r.id,chartNumber:r.chart_number||'',patientName:r.patient_name||'',cashAmount:r.cash_amount||0,transferAmount:r.transfer_amount||0,cardAmount:r.card_amount||0,vendor:r.vendor||'',note:r.note||'',noteDate:r.note_date||'',noteDays:r.note_days||0,category:r.category||'',appointmentDate:r.appointment_date||'',appointmentTime:r.appointment_time||'',guidanceType:r.guidance_type||'',memo:r.memo||'',noShow:r.no_show||false,prescription:r.prescription||'',prescriptionDate:r.prescription_date||'',prescriptionDays:r.prescription_days||0};}
+function ledRowToSB(r,date){return{id:r.id,date:date,chart_number:r.chartNumber||'',patient_name:r.patientName||'',cash_amount:+r.cashAmount||0,transfer_amount:+r.transferAmount||0,card_amount:+r.cardAmount||0,vendor:r.vendor||'',note:r.note||'',note_date:r.noteDate||'',note_days:r.noteDays||0,note2:r.note2||'',category:r.category||'',appointment_date:r.appointmentDate||'',appointment_time:r.appointmentTime||'',guidance_type:r.guidanceType||'',memo:r.memo||'',no_show:!!r.noShow,prescription:r.prescription||'',prescription_date:r.prescriptionDate||'',prescription_days:r.prescriptionDays||0};}
+function sbToLedRow(r){return{id:r.id,chartNumber:r.chart_number||'',patientName:r.patient_name||'',cashAmount:r.cash_amount||0,transferAmount:r.transfer_amount||0,cardAmount:r.card_amount||0,vendor:r.vendor||'',note:r.note||'',noteDate:r.note_date||'',noteDays:r.note_days||0,note2:r.note2||'',category:r.category||'',appointmentDate:r.appointment_date||'',appointmentTime:r.appointment_time||'',guidanceType:r.guidance_type||'',memo:r.memo||'',noShow:r.no_show||false,prescription:r.prescription||'',prescriptionDate:r.prescription_date||'',prescriptionDays:r.prescription_days||0};}
 function hcToSB(h){return{id:h.id,date:h.date,patient_id:h.patientId||'',chart_number:h.chartNumber||'',patient_name:h.patientName||'',phone:h.phone||'',visit_type:h.visitType||'',status:h.status||'pending',memo:h.memo||'',call_time:h.callTime||'',appt_done:!!h.apptDone};}
 function sbToHc(r){return{id:r.id,date:r.date,patientId:r.patient_id||'',chartNumber:r.chart_number||'',patientName:r.patient_name||'',phone:r.phone||'',visitType:r.visit_type||'',status:r.status||'pending',memo:r.memo||'',callTime:r.call_time||'',apptDone:r.appt_done||false,createdAt:r.created_at||''};}
 function inpToSB(date,roomId,bedIdx,b){return{id:b.id,date,room_id:roomId,bed_number:b.bed,name:b.name||'',meal_morning:b.meals?.morning||false,meal_lunch:b.meals?.lunch||false,meal_dinner:b.meals?.dinner||false,herbal_morning:b.herbal?.morning||'',herbal_lunch:b.herbal?.lunch||'',herbal_dinner:b.herbal?.dinner||''};}
@@ -1291,7 +1294,7 @@ function saveLedger(d,rows){
     });
   }
 }
-function newLedgerRow(){return{id:uid(),chartNumber:'',patientName:'',cashAmount:'',transferAmount:'',cardAmount:'',vendor:'',note:'',noteDate:'',noteDays:0,category:'',appointmentDate:'',appointmentTime:'',guidanceType:'',memo:'',noShow:false,prescription:'',prescriptionDate:'',prescriptionDays:0}}
+function newLedgerRow(){return{id:uid(),chartNumber:'',patientName:'',cashAmount:'',transferAmount:'',cardAmount:'',vendor:'',note:'',noteDate:'',noteDays:0,note2:'',category:'',appointmentDate:'',appointmentTime:'',guidanceType:'',memo:'',noShow:false,prescription:'',prescriptionDate:'',prescriptionDays:0}}
 
 // 입원 헬퍼
 function getInpatients(d){
@@ -2019,6 +2022,12 @@ function renderLedger(){
           📅<input type="date" class="tci" style="font-size:10px;padding:1px 3px;width:115px;margin-left:2px" value="${r.noteDate||d}" onchange="updLR('${d}','${r.id}','noteDate',this.value)" title="복약 시작일">
         </div>`:''}
       </td>
+      <td style="min-width:100px">
+        <select class="tci" style="${r.note2?'color:#0891b2;font-weight:600':''}" onchange="setBigubyeo2('${d}','${r.id}',this.value)">
+          <option value="">비급여2</option>
+          ${BIGUBYEO2_PRESETS.map(p=>`<option value="${p.label}" ${r.note2===p.label?'selected':''}>${p.label}</option>`).join('')}
+        </select>
+      </td>
       <td style="min-width:90px">
         <select class="tci" data-row-id="${r.id}" data-field="category" onchange="updLR('${d}','${r.id}','category',this.value)"><option value="">구분</option>${CATEGORIES.map(c=>`<option ${r.category===c?'selected':''}>${c}</option>`).join('')}</select>
         ${r.category==='비급여'?`<div style="margin-top:3px">
@@ -2056,6 +2065,9 @@ function renderLedger(){
         </div>
         <button class="btn btn-sm" onclick="S.ledgerDate=todayStr();render()" style="background:#2563eb;color:#fff;border-color:#2563eb">오늘</button>
         <button class="btn btn-sm" onclick="addLR('${d}')">${I.plus} 행 추가</button>
+        <input class="form-inp" id="ldg-search-inp" style="max-width:180px;font-size:12px" placeholder="🔍 이름/차트번호"
+          value="${(S.ledgerSearch||'').replace(/"/g,'&quot;')}"
+          oninput="S.ledgerSearch=this.value;ldgSearchUpdate()" autocomplete="off">
         <input type="date" id="datepicker-ledger" value="${d}" onchange="setDate(this.value)" style="position:fixed;top:-300px;left:-300px;width:1px;height:1px;opacity:0;pointer-events:none;">
         <input type="date" id="datepicker-ledger2" value="${d}" onchange="setDate(this.value)" style="position:fixed;top:-300px;left:-300px;width:1px;height:1px;opacity:0;pointer-events:none;">
         <button class="btn btn-sm" onclick="downloadExcel()">${I.dl} 엑셀</button>
@@ -2070,10 +2082,10 @@ function renderLedger(){
       <div class="sum-item"><div class="sum-label">총건수</div><div class="sum-val">${rows.length}건</div></div>
     </div>
     <div style="overflow-x:auto;flex:1;-webkit-overflow-scrolling:touch">
-      <table style="min-width:1200px"><thead><tr>
-        <th style="width:36px">#</th><th>차트번호</th><th>성명</th><th>현금</th><th>계좌이체</th><th>카드</th><th>매입사</th><th>비급여</th><th>구분</th><th>예약날짜</th><th>예약시간</th><th>안내구분</th><th>메모</th><th style="text-align:center">관리</th>
-      </tr></thead><tbody>
-      ${rows.length?rows.map(buildRow).join(''):`<tr><td colspan="14"><div class="no-data">행 추가 버튼으로 내역을 입력하세요</div></td></tr>`}
+      <table style="min-width:1400px"><thead><tr>
+        <th style="width:36px">#</th><th>차트번호</th><th>성명</th><th>현금</th><th>계좌이체</th><th>카드</th><th>매입사</th><th>비급여</th><th>비급여2</th><th>구분</th><th>예약날짜</th><th>예약시간</th><th>안내구분</th><th>메모</th><th style="text-align:center">관리</th>
+      </tr></thead><tbody id="ldg-tbody">
+      ${(()=>{const _q=(S.ledgerSearch||''). toLowerCase();const _r=_q?rows.filter(r=>(r.patientName||''). toLowerCase().includes(_q)||(r.chartNumber||''). toLowerCase().includes(_q)):rows;return _r.length?_r.map(buildRow).join(''):`<tr><td colspan="15"><div class="no-data">${_q?'검색 결과 없음':'행 추가 버튼으로 내역을 입력하세요'}</div></td></tr>`;})()}
       </tbody></table>
     </div>
   </div>`;
@@ -3283,6 +3295,20 @@ function renderSchedule(){
     S.schedule[key][emp]=SHIFTS[(idx+1)%SHIFTS.length];save('schedule');if(_sb&&S.sbConnected)sbSave('schedule').catch(e=>console.error('schedule:',e));render();
   }
   window._cycleShift=cycleShift;
+  window.setShift=function(emp,d,val){
+    const key=`${m}-${p2(d)}`;
+    if(!S.schedule[key])S.schedule[key]={};
+    S.schedule[key][emp]=val;
+    save('schedule');
+    if(_sb&&S.sbConnected)sbSave('schedule').catch(e=>console.error('schedule:',e));
+    const sel=event.target;
+    if(sel){
+      sel.style.background=val?(SHIFT_COLORS[val]||'#3b82f6')+'22':'#f9fafb';
+      sel.style.color=val?SHIFT_COLORS[val]||'#374151':'#9ca3af';
+      sel.style.borderColor=val?(SHIFT_COLORS[val]||'#3b82f6')+'88':'#e5e7eb';
+      sel.style.fontWeight=val?'600':'400';
+    }
+  };
   return`<div class="content">
     <div class="page-title">👨‍⚕️ 직원 근무표</div>
     <div class="action-bar">
@@ -3295,7 +3321,10 @@ function renderSchedule(){
     </div>
     <div class="section-card" style="overflow-x:auto">
       <table><thead><tr><th>직원</th>${Array.from({length:days},(_,i)=>{const dt=new Date(y,mo-1,i+1);const isW=dt.getDay()===0||dt.getDay()===6;return`<th style="min-width:36px;text-align:center;${isW?'color:#ef4444':''}">${i+1}<br><span style="font-size:9px;font-weight:400">${['일','월','화','수','목','금','토'][dt.getDay()]}</span></th>`}).join('')}</tr></thead>
-      <tbody>${emps.map(emp=>`<tr><td style="white-space:nowrap;font-size:13px;font-weight:500">${emp}<button class="btn btn-sm" style="margin-left:8px;padding:2px 7px;font-size:11px" onclick="delEmp('${emp}')">×</button></td>${Array.from({length:days},(_,i)=>{const sh=getShift(emp,i+1);return`<td style="padding:3px;text-align:center"><button class="shift-btn" style="background:${sh?SHIFT_COLORS[sh]+'22':'#f9fafb'};color:${sh?SHIFT_COLORS[sh]:'#9ca3af'};border:1px solid ${sh?SHIFT_COLORS[sh]+'55':'#e5e7eb'}" onclick="_cycleShift('${emp}',${i+1})">${sh||'·'}</button></td>`}).join('')}</tr>`).join('')}
+      <tbody>${emps.map(emp=>`<tr><td style="white-space:nowrap;font-size:13px;font-weight:500">${emp}<button class="btn btn-sm" style="margin-left:8px;padding:2px 7px;font-size:11px" onclick="delEmp('${emp}')">×</button></td>${Array.from({length:days},(_,i)=>{const sh=getShift(emp,i+1);return`<td style="padding:3px;text-align:center"><select style="font-size:11px;padding:2px;border-radius:4px;cursor:pointer" onchange="setShift('${emp}',${i+1},this.value)" style="font-size:11px;padding:2px;border:1px solid ${sh?SHIFT_COLORS[sh]+'88':'#e5e7eb'};border-radius:4px;background:${sh?SHIFT_COLORS[sh]+'22':'#f9fafb'};color:${sh?SHIFT_COLORS[sh]:'#9ca3af'};font-weight:${sh?'600':'400'};min-width:44px">
+                <option value="">·</option>
+                ${SHIFTS.map(s=>`<option value="${s}" ${sh===s?'selected':''}>${s}</option>`).join('')}
+              </select></td>`}).join('')}</tr>`).join('')}
       </tbody></table>
     </div>
   </div>`;
