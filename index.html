@@ -1570,14 +1570,9 @@ function renderDashboard(){
   })();
   // 신환: 일계표 구분이 '신환'인 것
   const newPts=rows.filter(r=>r.category==='신환');
-  // TA: 일계표 구분이 ta 관련인 것 (ta, ta초진, ta일반, ta추나)
+  // TA: 오늘 일계표에서만 (일계표 category 기준)
   const taCats=['ta','ta초진','ta일반','ta추나'];
-  const taFromLedger=rows.filter(r=>taCats.includes(r.category));
-  // 환자목록에서도 TA 포함 (visitType 기준)
-  const taFromPts=allPt.filter(p=>taCats.includes(p.visitType));
-  // 합집합 (중복 제거)
-  const taPatientNames=new Set([...taFromLedger.map(r=>r.chartNumber),...taFromPts.map(p=>p.chartNumber)]);
-  const taPatients=[...taPatientNames].map(cn=>allPt.find(p=>p.chartNumber===cn)||taFromLedger.find(r=>r.chartNumber===cn)).filter(Boolean);
+  const taPatients=rows.filter(r=>taCats.includes(r.category));
   // 오늘 날짜 일계표 중 예약날짜 없는 건 (오늘 진료 당일 워크인)
   // 선택 날짜(td) 기준 일계표 (보고서 날짜와 동기화)
   const todayRows=getLedger(td);
@@ -1764,13 +1759,15 @@ function renderDashboard(){
       </div>`}
     `,'lg');
   } else if(mo==='ta'){
-    // TA: 오늘 일계표 + 환자목록 통합
-    const taCats2=['ta','ta초진','ta일반','ta추나'];
-    const taLedgerRows=rows.filter(r=>taCats2.includes(r.category));
-    mHtml=mWrap(`🚗 TA — ${taPatients.length}명`,mTbl(['차트번호','이름','전화번호','구분','출처'],
-      [...taLedgerRows.map(r=>`<tr><td style="font-family:monospace;font-size:12px">${r.chartNumber||'-'}</td><td>${r.patientName||'-'}</td><td>${allPt.find(p=>p.chartNumber===r.chartNumber)?.phone||'-'}</td><td><span class="badge badge-amber">${r.category}</span></td><td style="font-size:11px;color:#6b7280">일계표</td></tr>`),
-      ...allPt.filter(p=>taCats2.includes(p.visitType)&&!taLedgerRows.some(r=>r.chartNumber===p.chartNumber)).map(p=>`<tr><td style="font-family:monospace;font-size:12px">${p.chartNumber||'-'}</td><td>${p.name}</td><td>${p.phone||'-'}</td><td><span class="badge badge-amber">${p.visitType}</span></td><td style="font-size:11px;color:#6b7280">환자목록</td></tr>`)
-      ].join('')));
+    // TA: 일계표에서만 (patientName, chartNumber, category)
+    mHtml=mWrap(`🚗 TA — ${taPatients.length}명`,mTbl(['차트번호','이름','전화번호','구분','메모'],
+      taPatients.map(r=>`<tr>
+        <td style="font-family:monospace;font-size:12px">${r.chartNumber||'-'}</td>
+        <td style="font-weight:600">${r.patientName||'-'}</td>
+        <td style="font-size:12px">${allPt.find(p=>p.chartNumber===r.chartNumber)?.phone||'-'}</td>
+        <td><span class="badge badge-amber">${r.category||'-'}</span></td>
+        <td style="font-size:11px;color:#6b7280">${r.memo||'-'}</td>
+      </tr>`).join('')));
   } else if(mo==='noAppt'){
     const list=noApptList;
     mHtml=mWrap(`📭 ${fmtDot(td)} 미예약 — ${list.length}명`,`
