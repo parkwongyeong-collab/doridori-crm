@@ -2091,6 +2091,12 @@ function renderLedger(){
   </div>`;
 }
 
+window.setBigubyeo2=function(d,id,val){
+  const rows=getLedger(d).map(r=>r.id===id?{...r,note2:val}:r);
+  saveLedger(d,rows);
+  if(_sb&&S.sbConnected) sbSave('ledger:'+d).catch(e=>console.error('note2 저장오류:',e));
+  render();
+};
 window.setBigubyeoNote=function(d,id,val){
   // val = "label|days" or ""
   const parts=(val||'').split('|');
