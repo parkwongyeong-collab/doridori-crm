@@ -379,7 +379,7 @@ var S={
   patients:[],ledger:{},employees:['김간호','이실장','박치료사'],
   schedule:{},messageLogs:[],inpatients:{},happycalls:{},
   ledgerDate:todayStr(),calMonth:todayStr().slice(0,7),scheduleMonth:todayStr().slice(0,7),happycallDate:todayStr(),
-  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],statsTab:'daily',goalRevenue:0,
+  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],notices:{},statsTab:'daily',goalRevenue:0,
   user:{name:'관리자',email:'pwk2956@naver.com',role:'admin'},
   solapiKey:'',solapiSecret:'',solapiSender:'',
   supabaseUrl:'https://mzdxunkqewctmognveqo.supabase.co',supabaseKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA',sbConnected:false,
@@ -594,7 +594,15 @@ async function sbLoadAll(){
       sch.data.forEach(r=>{if(!S.schedule[r.date])S.schedule[r.date]={};S.schedule[r.date][r.employee_name]=r.shift;});
     }
     if(!msgs.error&&msgs.data){
-      S.messageLogs=msgs.data.map(r=>({id:r.id,createdAt:r.created_at_kr||'',patientName:r.patient_name||'',to:r.to_number||'',type:r.type||'',status:r.status||'',text:r.text||''}));
+      // 공지사항과 일반 발송내역 분리
+      const noticeRows=msgs.data.filter(r=>r.type==='notice');
+      const logRows=msgs.data.filter(r=>r.type!=='notice');
+      S.messageLogs=logRows.map(r=>({id:r.id,createdAt:r.created_at_kr||'',patientName:r.patient_name||'',to:r.to_number||'',type:r.type||'',status:r.status||'',text:r.text||''}));
+      if(!S.notices) S.notices={};
+      noticeRows.forEach(r=>{
+        const date=r.id.replace('notice:','');
+        S.notices[date]=r.text||'';
+      });
     }
     if(!inp.error&&inp.data){
       S.inpatients={};
@@ -1126,6 +1134,40 @@ window.saveQuickAppts=async function(){
   const dates=[...new Set(savedRows.map(r=>r.appointmentDate))].join(', ');
   showToast('✅ '+savedRows.length+'건 저장 완료! → '+dates+' 일계표');
   render();
+};
+
+// 공지사항 저장 - Supabase 전용
+window.saveNotice=async function(date){
+  const ta=document.getElementById('notice-textarea');
+  const text=ta?ta.value:'';
+  if(!S.notices) S.notices={};
+  S.notices[date]=text;
+  // localStorage 저장 안 함 (Supabase만)
+  const msgEl=document.getElementById('notice-saved-msg');
+  if(!_sb||!S.sbConnected){
+    if(msgEl) msgEl.textContent='⚠️ Supabase 미연결';
+    return;
+  }
+  try{
+    // notice_date + text를 message_logs 테이블의 별도 레코드로 저장
+    // id = 'notice:날짜' 형태로 고유 식별
+    const noticeId='notice:'+date;
+    const{error}=await _sb.from('message_logs').upsert([{
+      id: noticeId,
+      created_at_kr: new Date().toLocaleString('ko-KR'),
+      patient_name: '__NOTICE__',
+      to_number: '',
+      type: 'notice',
+      status: 'active',
+      text: text
+    }],{onConflict:'id'});
+    if(error) throw error;
+    if(msgEl) msgEl.textContent='✅ '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 저장됨';
+    S._noticeDirty=false;
+  }catch(e){
+    console.error('공지 저장 오류:',e);
+    if(msgEl) msgEl.textContent='⚠️ 저장 실패';
+  }
 };
 
 window.ptSearchInput=function(val){
@@ -1966,6 +2008,24 @@ function renderDashboard(){
         </tbody></table></div>`}
     </div>
 
+    <div class="section-card">
+      <div class="section-hdr" style="flex-wrap:wrap;gap:8px">
+        <div class="section-title">📌 공지사항</div>
+        <span style="font-size:11px;color:#9ca3af">${fmtDot(td)} 기준</span>
+      </div>
+      <div style="padding:4px">
+        <textarea id="notice-textarea"
+          style="width:100%;min-height:100px;padding:10px;font-size:13px;border:1px solid #e5e7eb;border-radius:8px;resize:vertical;font-family:inherit;line-height:1.6;outline:none;box-sizing:border-box"
+          placeholder="오늘의 공지사항을 입력하세요..."
+          oninput="S._noticeDirty=true"
+          onblur="saveNotice('${td}')"
+        >${(S.notices&&S.notices[td])||''}</textarea>
+        <div style="display:flex;justify-content:flex-end;gap:6px;margin-top:6px">
+          <span id="notice-saved-msg" style="font-size:11px;color:#9ca3af;align-self:center"></span>
+          <button class="btn btn-sm" style="background:#2563eb;color:#fff;border-color:#2563eb" onclick="saveNotice('${td}')">💾 저장</button>
+        </div>
+      </div>
+    </div>
     <div class="section-card">
       <div class="section-hdr">
         <div class="section-title">${I.msg} 알림톡 / SMS 발송 내역</div>
