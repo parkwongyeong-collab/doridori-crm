@@ -1140,17 +1140,19 @@ window.saveNotice=async function(date){
   // Supabase 연결 시 DB에도 저장
   if(_sb&&S.sbConnected){
     try{
-      // upsert: id='notice:날짜' 고정 → 중복 없이 덮어쓰기
-      const noticeRow={
-        id:'notice:'+date,
-        created_at_kr:new Date().toLocaleString('ko-KR'),
-        patient_name:'__NOTICE__',
-        to_number:date,
-        type:'notice',
-        status:'active',
-        text:text
-      };
-      const{error}=await _sb.from('message_logs').upsert([noticeRow],{onConflict:'id'});
+      // DELETE → INSERT 방식 (upsert onConflict 버전 호환 문제 우회)
+      const noticeId='notice:'+date;
+      const{error:delErr}=await _sb.from('message_logs').delete().eq('id',noticeId);
+      if(delErr) console.warn('notice delete 경고(무시가능):',delErr.message);
+      const{error}=await _sb.from('message_logs').insert([{
+        id: noticeId,
+        created_at_kr: new Date().toLocaleString('ko-KR'),
+        patient_name: '__NOTICE__',
+        to_number: date,
+        type: 'notice',
+        status: 'active',
+        text: text
+      }]);
       if(error) throw error;
       if(msgEl) msgEl.textContent='✅ '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 저장됨';
     }catch(e){
