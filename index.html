@@ -303,16 +303,8 @@ const USERS=[
   {email:'kim@naver.com',     pw:'20161107jh!', name:'김직원', role:'staff'},
 ];
 
-const ROOMS=[
-  {id:'301',label:'301호',type:'3인실',beds:3},
-  {id:'302',label:'302호',type:'3인실',beds:3},
-  {id:'303',label:'303호',type:'당직실',beds:1},
-  {id:'304',label:'304호',type:'1인실',beds:1},
-  {id:'305',label:'305호',type:'1인실',beds:1},
-  {id:'306',label:'306호',type:'4인실',beds:4},
-  {id:'307',label:'307호',type:'3인실',beds:3},
-  {id:'308',label:'308호',type:'2인실',beds:2},
-];
+// ROOMS 제거 (입원실 없음)
+
 
 const BIGUBYEO_PRESETS=[
   {name:'보폐고',days:30,label:'보폐고 30일'},
@@ -331,8 +323,8 @@ const BIGUBYEO_PRESETS=[
 const BIGUBYEO2_PRESETS=[
   {label:'약침'}, {label:'진단서'}, {label:'보폐고'}, {label:'청인유쾌환'}, {label:'TBA'},
 ];
-const SHIFTS=['근무','전반','후반','휴무','기타','병가'];
-const SHIFT_COLORS={근무:'#3b82f6',전반:'#8b5cf6',후반:'#ec4899',휴무:'#9ca3af',기타:'#f59e0b',병가:'#ef4444'};
+const SHIFTS=['근무','오전','오후','휴무','병가','기타'];
+const SHIFT_COLORS={근무:'#2563eb',오전:'#059669',오후:'#0891b2',휴무:'#ef4444',병가:'#f97316',기타:'#ec4899'};
 const REFERRAL=['간판 집근처','가족소개','지인소개','네이버','기타','플레이스'];
 const TREATMENT=['두통','안통','턱관절','경추통증','어깨통증','가슴통증','등통증','옆구리통증','허리통증','골반통증','무릎통증','종아리통증','발목통증','복숭아뼈통증','발바닥통증','발가락통증','엘보우통증','손목통증','손가락통증','소화불량','일반한약','공진단','다이어트'];
 const GUIDANCE=['전화','문자','카카오','직접','없음'];
@@ -447,7 +439,7 @@ function startRealtime(){
       .on('postgres_changes',{event:'*',schema:'public',table:'patients'},handleRealtimeChange)
       .on('postgres_changes',{event:'*',schema:'public',table:'ledger_rows'},handleRealtimeChange)
       .on('postgres_changes',{event:'*',schema:'public',table:'happycalls'},handleRealtimeChange)
-      .on('postgres_changes',{event:'*',schema:'public',table:'inpatients'},handleRealtimeChange)
+      // inpatients 구독 제거 (입원실 없음)
       .on('postgres_changes',{event:'*',schema:'public',table:'schedule'},handleRealtimeChange)
       .subscribe(function(status){
         var el=document.querySelector('.sb-sync-time');
@@ -600,8 +592,8 @@ async function sbLoadAll(){
       S.messageLogs=logRows.map(r=>({id:r.id,createdAt:r.created_at_kr||'',patientName:r.patient_name||'',to:r.to_number||'',type:r.type||'',status:r.status||'',text:r.text||''}));
       if(!S.notices) S.notices={};
       noticeRows.forEach(r=>{
-        const date=r.id.replace('notice:','');
-        S.notices[date]=r.text||'';
+        const date=r.to_number||'';
+        if(date) S.notices[date]=r.text||'';
       });
     }
     if(!inp.error&&inp.data){
@@ -847,7 +839,7 @@ var DEFAULT_SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSI
 function loadAll(){
   // patients 제외 - Supabase에서만 로드 (localStorage 5MB 한계 우회)
   ['ledger','employees','schedule','messageLogs','inpatients','happycalls',
-   'solapiKey','solapiSecret','solapiSender','user'].forEach(k=>{
+   'notices','solapiKey','solapiSecret','solapiSender','user'].forEach(k=>{
     try{const v=localStorage.getItem('doridori_'+k);if(v!=null)S[k]=JSON.parse(v)}catch(e){console.warn('Load error:',k,e);}
   });
 
@@ -1142,32 +1134,31 @@ window.saveNotice=async function(date){
   const text=ta?ta.value:'';
   if(!S.notices) S.notices={};
   S.notices[date]=text;
-  // localStorage 저장 안 함 (Supabase만)
+  // localStorage에 항상 저장 (오프라인 백업)
+  try{localStorage.setItem('doridori_notices',JSON.stringify(S.notices));}catch(e){}
   const msgEl=document.getElementById('notice-saved-msg');
-  if(!_sb||!S.sbConnected){
-    if(msgEl) msgEl.textContent='⚠️ Supabase 미연결';
-    return;
+  // Supabase 연결 시 DB에도 저장
+  if(_sb&&S.sbConnected){
+    try{
+      await _sb.from('message_logs').delete().eq('patient_name','__NOTICE__').eq('to_number',date);
+      const{error}=await _sb.from('message_logs').insert([{
+        created_at_kr: new Date().toLocaleString('ko-KR'),
+        patient_name: '__NOTICE__',
+        to_number: date,
+        type: 'notice',
+        status: 'active',
+        text: text
+      }]);
+      if(error) throw error;
+      if(msgEl) msgEl.textContent='✅ '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 저장됨';
+    }catch(e){
+      console.error('공지 저장 오류:',e);
+      if(msgEl) msgEl.textContent='⚠️ DB 저장 실패 (로컬 저장됨)';
+    }
+  } else {
+    if(msgEl) msgEl.textContent='✅ '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 로컬 저장됨';
   }
-  try{
-    // notice_date + text를 message_logs 테이블의 별도 레코드로 저장
-    // id = 'notice:날짜' 형태로 고유 식별
-    const noticeId='notice:'+date;
-    const{error}=await _sb.from('message_logs').upsert([{
-      id: noticeId,
-      created_at_kr: new Date().toLocaleString('ko-KR'),
-      patient_name: '__NOTICE__',
-      to_number: '',
-      type: 'notice',
-      status: 'active',
-      text: text
-    }],{onConflict:'id'});
-    if(error) throw error;
-    if(msgEl) msgEl.textContent='✅ '+new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})+' 저장됨';
-    S._noticeDirty=false;
-  }catch(e){
-    console.error('공지 저장 오류:',e);
-    if(msgEl) msgEl.textContent='⚠️ 저장 실패';
-  }
+  S._noticeDirty=false;
 };
 
 window.ptSearchInput=function(val){
@@ -1436,13 +1427,13 @@ function downloadExcel(){
   addSheet('요약통계',['항목','값'],[
     ['기준날짜',td],['전체환자',allPts.length],['오늘예약',todayAppts.length],
     ['이번달노쇼',monthNoShow2.length],['오늘매출',rows.reduce((s,r)=>s+(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0),0)],
-    ['입원환자',ipRows.length]
+    ['건보추나',rows.filter(r=>r.category==='건보추나').length],['ta추나',rows.filter(r=>r.category==='ta추나').length]
   ]);
   addSheet('환자목록',['차트번호','이름','성별','전화번호','구분','내원경로','치료부위','등록일'],
     allPts.map(p=>[p.chartNumber,p.name,p.gender||'',p.phone||'',p.visitType||'',p.referralPath||'',(p.treatmentArea||[]).join('/'),p.createdAt?p.createdAt.slice(0,10):'']));
   addSheet('금일일계표',['연번','차트번호','성명','현금','계좌이체','카드','매입사','비고','구분','예약날짜','예약시간','안내구분','메모','노쇼'],
     rows.map((r,i)=>[i+1,r.chartNumber||'',r.patientName||'',r.cashAmount||0,r.transferAmount||0,r.cardAmount||0,r.vendor||'',r.note||'',r.category||'',r.appointmentDate||'',r.appointmentTime||'',r.guidanceType||'',r.memo||'',r.noShow?'O':'']));
-  addSheet('입원현황',['호실','룸타입','침대','환자명','아침식사','점심식사','저녁식사','한약(아침)','한약(점심)','한약(저녁)'],ipRows);
+  // 입원현황 시트 제거 (입원실 없음)
   addSheet('알림톡내역',['발송일시','환자명','수신번호','유형','상태','내용'],
     S.messageLogs.map(l=>[l.createdAt,l.patientName||'',l.to,l.type,l.status==='success'?'성공':'실패',l.text]));
   xlsxDownload(wb,`보고서_${td}.xlsx`);
@@ -1618,6 +1609,9 @@ function renderDashboard(){
   // TA: 오늘 일계표에서만 (일계표 category 기준)
   const taCats=['ta','ta초진','ta일반','ta추나'];
   const taPatients=rows.filter(r=>taCats.includes(r.category));
+  // 건보추나 / ta추나 별도 집계
+  const geonboChunaRows=rows.filter(r=>r.category==='건보추나');
+  const taChunaRows=rows.filter(r=>r.category==='ta추나');
   // 오늘 날짜 일계표 중 예약날짜 없는 건 (오늘 진료 당일 워크인)
   // 선택 날짜(td) 기준 일계표 (보고서 날짜와 동기화)
   const todayRows=getLedger(td);
@@ -1813,6 +1807,42 @@ function renderDashboard(){
         <td><span class="badge badge-amber">${r.category||'-'}</span></td>
         <td style="font-size:11px;color:#6b7280">${r.memo||'-'}</td>
       </tr>`).join('')));
+  } else if(mo==='geonbochuna'){
+    mHtml=mWrap(`🟢 건보추나 — ${geonboChunaRows.length}명`,
+      geonboChunaRows.length===0?'<div class="no-data">오늘 건보추나 환자 없음</div>':
+      mTbl(['차트번호','이름','전화번호','현금','이체','카드','합계','메모'],
+      geonboChunaRows.map(r=>{
+        const pt=allPt.find(p=>p.chartNumber===r.chartNumber);
+        const amt=(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0);
+        return`<tr>
+          <td style="font-family:monospace;font-size:12px">${r.chartNumber||'-'}</td>
+          <td style="font-weight:600">${r.patientName||'-'}</td>
+          <td style="font-size:12px">${pt?.phone||'-'}</td>
+          <td style="text-align:right;color:#374151">${r.cashAmount?fmtKrw(+r.cashAmount):'-'}</td>
+          <td style="text-align:right;color:#374151">${r.transferAmount?fmtKrw(+r.transferAmount):'-'}</td>
+          <td style="text-align:right;color:#374151">${r.cardAmount?fmtKrw(+r.cardAmount):'-'}</td>
+          <td style="text-align:right;font-weight:700;color:#16a34a">${amt?fmtKrw(amt):'-'}</td>
+          <td style="font-size:11px;color:#6b7280">${r.memo||'-'}</td>
+        </tr>`;
+      }).join('')));
+  } else if(mo==='tachuna'){
+    mHtml=mWrap(`🔵 TA추나 — ${taChunaRows.length}명`,
+      taChunaRows.length===0?'<div class="no-data">오늘 TA추나 환자 없음</div>':
+      mTbl(['차트번호','이름','전화번호','현금','이체','카드','합계','메모'],
+      taChunaRows.map(r=>{
+        const pt=allPt.find(p=>p.chartNumber===r.chartNumber);
+        const amt=(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0);
+        return`<tr>
+          <td style="font-family:monospace;font-size:12px">${r.chartNumber||'-'}</td>
+          <td style="font-weight:600">${r.patientName||'-'}</td>
+          <td style="font-size:12px">${pt?.phone||'-'}</td>
+          <td style="text-align:right;color:#374151">${r.cashAmount?fmtKrw(+r.cashAmount):'-'}</td>
+          <td style="text-align:right;color:#374151">${r.transferAmount?fmtKrw(+r.transferAmount):'-'}</td>
+          <td style="text-align:right;color:#374151">${r.cardAmount?fmtKrw(+r.cardAmount):'-'}</td>
+          <td style="text-align:right;font-weight:700;color:#0284c7">${amt?fmtKrw(amt):'-'}</td>
+          <td style="font-size:11px;color:#6b7280">${r.memo||'-'}</td>
+        </tr>`;
+      }).join('')));
   } else if(mo==='noAppt'){
     const list=noApptList;
     mHtml=mWrap(`📭 ${fmtDot(td)} 미예약 — ${list.length}명`,`
@@ -1887,6 +1917,10 @@ function renderDashboard(){
       ${sc('#fce7f3','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#be185d" stroke-width="2"><polyline points="23,6 13.5,15.5 8.5,10.5 1,18"/><polyline points="17,6 23,6 23,12"/></svg>','오늘 매출',fmtKrw(totalRev),'','revenue',true)}
       ${sc('#fee2e2','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/></svg>','이번달 노쇼',monthNoShow.length+'건','','noshow',true)}
       ${sc('#f5f3ff','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" stroke-width="2"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1" ry="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="15" y2="16"/></svg>','비급여',bigubyeoRows.length+'건',bigubyeoToday.length?'오늘 '+bigubyeoToday.length+'건':'이번달','bigubyeo',true)}
+    </div>
+    <div class="stat-row">
+      ${sc('#dcfce7','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>','건보추나',geonboChunaRows.length+'명',geonboChunaRows.length?fmtKrw(geonboChunaRows.reduce((s,r)=>s+(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0),0)):'오늘 0명','geonbochuna',geonboChunaRows.length>0)}
+      ${sc('#e0f2fe','<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>','TA추나',taChunaRows.length+'명',taChunaRows.length?fmtKrw(taChunaRows.reduce((s,r)=>s+(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0),0)):'오늘 0명','tachuna',taChunaRows.length>0)}
     </div>
     <div class="section-card">
       <div class="section-hdr">
@@ -3386,9 +3420,14 @@ function renderSchedule(){
       </div>
       <button class="btn" onclick="addEmp()">+ 직원 추가</button>
     </div>
-    <div class="section-card" style="overflow-x:auto">
-      <table><thead><tr><th>직원</th>${Array.from({length:days},(_,i)=>{const dt=new Date(y,mo-1,i+1);const isW=dt.getDay()===0||dt.getDay()===6;return`<th style="min-width:36px;text-align:center;${isW?'color:#ef4444':''}">${i+1}<br><span style="font-size:9px;font-weight:400">${['일','월','화','수','목','금','토'][dt.getDay()]}</span></th>`}).join('')}</tr></thead>
-      <tbody>${emps.map(emp=>`<tr><td style="white-space:nowrap;font-size:13px;font-weight:500">${emp}<button class="btn btn-sm" style="margin-left:8px;padding:2px 7px;font-size:11px" onclick="delEmp('${emp}')">×</button></td>${Array.from({length:days},(_,i)=>{const sh=getShift(emp,i+1);return`<td style="padding:2px;text-align:center"><select
+    <div class="section-card" style="overflow-x:auto;-webkit-overflow-scrolling:touch">
+      <table style="border-collapse:separate;border-spacing:0"><thead><tr>
+        <th style="position:sticky;left:0;z-index:10;background:#fff;white-space:nowrap;min-width:100px;padding:6px 10px;border-right:2px solid #e5e7eb;font-size:13px">직원</th>
+        ${Array.from({length:days},(_,i)=>{const dt=new Date(y,mo-1,i+1);const isW=dt.getDay()===0||dt.getDay()===6;return`<th style="min-width:54px;text-align:center;${isW?'color:#ef4444':''};padding:4px 2px">${i+1}<br><span style="font-size:9px;font-weight:400">${['일','월','화','수','목','금','토'][dt.getDay()]}</span></th>`}).join('')}
+      </tr></thead>
+      <tbody>${emps.map(emp=>`<tr>
+        <td style="position:sticky;left:0;z-index:9;background:#fff;white-space:nowrap;font-size:13px;font-weight:600;border-right:2px solid #e5e7eb;padding:4px 10px">${emp}<button class="btn btn-sm" style="margin-left:8px;padding:2px 7px;font-size:11px" onclick="delEmp('${emp}')">×</button></td>
+        ${Array.from({length:days},(_,i)=>{const sh=getShift(emp,i+1);return`<td style="padding:2px;text-align:center"><select
                 onchange="setShift('${emp}',${i+1},this.value)"
                 style="font-size:11px;padding:2px 4px;border:2px solid ${sh?SHIFT_COLORS[sh]:'#e5e7eb'};border-radius:6px;background:${sh?SHIFT_COLORS[sh]+'33':'#f9fafb'};color:${sh?SHIFT_COLORS[sh]:'#9ca3af'};font-weight:${sh?'700':'400'};min-width:48px;cursor:pointer;outline:none">
                 <option value="">·</option>
@@ -3396,6 +3435,78 @@ function renderSchedule(){
               </select></td>`}).join('')}</tr>`).join('')}
       </tbody></table>
     </div>
+
+    <!-- 직원별 통계 -->
+    <div class="section-card" style="margin-top:16px">
+      <div class="section-hdr"><div class="section-title">📊 직원별 근무 통계 (${m})</div></div>
+      <div style="overflow-x:auto">
+        <table style="font-size:13px;width:100%;min-width:500px">
+          <thead><tr style="background:#f8fafc">
+            <th style="text-align:left;padding:8px">직원명</th>
+            ${SHIFTS.map(s=>`<th style="text-align:center;padding:8px;color:${SHIFT_COLORS[s]||'#374151'}">${s}</th>`).join('')}
+            <th style="text-align:center;padding:8px">합계</th>
+          </tr></thead>
+          <tbody>
+          ${emps.map(emp=>{
+            const counts={};
+            SHIFTS.forEach(s=>counts[s]=0);
+            let total=0;
+            for(let d=1;d<=days;d++){
+              const sh=getShift(emp,d);
+              if(sh&&counts[sh]!==undefined){counts[sh]++;total++;}
+            }
+            return`<tr style="border-bottom:1px solid #f3f4f6">
+              <td style="padding:8px;font-weight:600">${emp}</td>
+              ${SHIFTS.map(s=>`<td style="text-align:center;padding:8px;color:${SHIFT_COLORS[s]};font-weight:${counts[s]>0?'700':'400'}">${counts[s]||'-'}</td>`).join('')}
+              <td style="text-align:center;padding:8px;font-weight:700;color:#2563eb">${total}</td>
+            </tr>`;
+          }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- 달력형 근무표 -->
+    <div class="section-card" style="margin-top:16px">
+      <div class="section-hdr"><div class="section-title">📅 달력형 근무표 (${m})</div></div>
+      <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px;padding:4px">
+        <!-- 요일 헤더 -->
+        ${['일','월','화','수','목','금','토'].map((d,i)=>`
+          <div style="text-align:center;font-size:12px;font-weight:700;padding:6px;color:${i===0?'#ef4444':i===6?'#3b82f6':'#374151'}">${d}</div>
+        `).join('')}
+        <!-- 빈칸 (첫날 요일 맞추기) -->
+        ${Array(new Date(y,mo-1,1).getDay()).fill('<div></div>').join('')}
+        <!-- 날짜 셀 -->
+        ${Array.from({length:days},(_,i)=>{
+          const d=i+1;
+          const date=`${m}-${p2(d)}`;
+          const dow=new Date(y,mo-1,d).getDay();
+          const isToday=date===todayStr();
+          // 이날 근무/휴무/기타 직원 분류
+          const shiftMap={};
+          emps.forEach(emp=>{
+            const sh=getShift(emp,d);
+            if(sh){
+              if(!shiftMap[sh]) shiftMap[sh]=[];
+              shiftMap[sh].push(emp);
+            }
+          });
+          const shiftEntries=Object.entries(shiftMap);
+          return`<div style="border:1px solid ${isToday?'#2563eb':'#e5e7eb'};border-radius:8px;padding:6px;min-height:80px;background:${isToday?'#eff6ff':'#fff'}">
+            <div style="font-size:12px;font-weight:700;color:${dow===0?'#ef4444':dow===6?'#3b82f6':isToday?'#2563eb':'#374151'};margin-bottom:4px">${d}</div>
+            ${shiftEntries.length===0?`<div style="font-size:10px;color:#d1d5db">-</div>`:
+              shiftEntries.map(([sh,empList])=>`
+                <div style="margin-bottom:3px">
+                  <span style="font-size:9px;font-weight:700;color:${SHIFT_COLORS[sh]||'#374151'};background:${SHIFT_COLORS[sh]||'#94a3b8'}22;padding:1px 4px;border-radius:3px">${sh}</span>
+                  <div style="font-size:10px;color:#374151;margin-top:1px">${empList.join(', ')}</div>
+                </div>
+              `).join('')
+            }
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+
   </div>`;
 }
 window.addEmp=()=>{const n=prompt('직원 이름:');if(!n||!n.trim())return;if(S.employees.includes(n.trim()))return showToast('이미 있는 직원입니다','err');S.employees.push(n.trim());save('employees');if(_sb&&S.sbConnected)sbSave('employees').catch(e=>console.error(e));render()};
@@ -3653,7 +3764,7 @@ function renderStats(){
 
     <!-- 유입경로 통계 -->
     <div class="section-card" style="margin-bottom:16px">
-      <div class="section-hdr"><div class="section-title">🚪 유입경로 통계 (전체 환자)</div></div>
+      <div class="section-hdr"><div class="section-title">🚪 유입경로 통계</div><span style="font-size:12px;color:#6b7280">전체 환자 기준</span></div>
       <div style="padding:0 4px">
       ${(()=>{
         const refSummary={};
@@ -3662,16 +3773,17 @@ function renderStats(){
         const total=S.patients.length||1;
         const refColors={'간판 집근처':'#3b82f6','가족소개':'#8b5cf6','지인소개':'#10b981','네이버':'#f59e0b','기타':'#9ca3af','플레이스':'#ec4899','SNS':'#06b6d4','인터넷':'#6366f1','현수막':'#f97316','TV/라디오':'#ef4444'};
         if(!refEntries.length) return '<div class="no-data">데이터 없음</div>';
-        return `<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        return `<div style="display:flex;flex-direction:column;gap:10px">
           ${refEntries.map(([ref,cnt])=>`
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:12px;font-weight:600;min-width:76px;color:${refColors[ref]||'#374151'}">${ref}</span>
-              <div style="flex:1;background:#f3f4f6;border-radius:99px;height:10px;overflow:hidden">
-                <div style="height:100%;border-radius:99px;background:${refColors[ref]||'#94a3b8'};width:${Math.round(cnt/total*100)}%"></div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="font-size:13px;font-weight:700;min-width:90px;color:${refColors[ref]||'#374151'}">${ref}</span>
+              <div style="flex:1;background:#f3f4f6;border-radius:99px;height:14px;overflow:hidden">
+                <div style="height:100%;border-radius:99px;background:${refColors[ref]||'#94a3b8'};width:${Math.round(cnt/total*100)}%;transition:width .3s"></div>
               </div>
-              <span style="font-size:12px;min-width:32px;text-align:right;font-weight:600">${cnt}명</span>
-              <span style="font-size:11px;color:#9ca3af;min-width:32px">${Math.round(cnt/total*100)}%</span>
+              <span style="font-size:13px;font-weight:700;min-width:40px;text-align:right">${cnt}명</span>
+              <span style="font-size:12px;color:#6b7280;min-width:36px;text-align:right">${Math.round(cnt/total*100)}%</span>
             </div>`).join('')}
+          <div style="font-size:12px;color:#9ca3af;text-align:right;margin-top:4px">전체 ${total}명 기준</div>
         </div>`;
       })()}
       </div>
