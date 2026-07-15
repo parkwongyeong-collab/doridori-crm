@@ -331,10 +331,15 @@ const GUIDANCE=['전화','문자','카카오','직접','없음'];
 const TIME_OPT=(()=>{const t=[];for(let h=8;h<=21;h++){t.push(p2(h)+':00');if(h<21)t.push(p2(h)+':30')}return t})();
 
 const MSG_TEMPLATES=[
-  {id:'appt',label:'예약 확인',text:'안녕하세요. {name}님, 내일 {time} 예약이 확인되었습니다.'},
-  {id:'remind',label:'예약 알림',text:'{name}님, 오늘 {time} 예약 알려드립니다. 😊'},
-  {id:'noshow',label:'노쇼 안내',text:'{name}님, 오늘 예약을 놓치셨네요. 다시 예약해 주세요.'},
-  {id:'complete',label:'진료 완료',text:'{name}님, 오늘 진료 완료되었습니다. 다음 예약은 원무과에 문의해 주세요.'},
+  {id:'appt',label:'예약 확인',text:'안녕하세요 😊 {name}님, 오늘 도리도리한의원 예약이 확인되었습니다. 편안하게 오세요!'},
+  {id:'remind',label:'예약 알림',text:'{name}님, 오늘 {time} 도리도리한의원 예약 알려드립니다 😊 편안하게 오세요!'},
+  {id:'noshow',label:'노쇼 안내',text:'{name}님, 오늘 예약 시간에 방문을 못 하셨네요. 언제든 다시 예약해 주시면 친절히 안내드리겠습니다. 도리도리한의원 📞'},
+  {id:'complete',label:'진료 완료',text:'{name}님, 오늘 진료 감사드립니다 🙏 다음 내원일을 잊지 마세요! 도리도리한의원'},
+  {id:'thanks_new',label:'신환 방문감사',text:'안녕하세요 {name}님 😊 오늘 도리도리한의원을 처음 방문해 주셔서 진심으로 감사드립니다. 치료에 궁금한 점이 있으시면 언제든 연락 주세요! 다음 내원도 기다리겠습니다 🙏'},
+  {id:'thanks_ta',label:'TA초진 방문감사',text:'안녕하세요 {name}님 😊 오늘 도리도리한의원을 방문해 주셔서 감사드립니다. 교통사고 치료 관련 궁금한 점은 언제든 연락 주세요. 빠른 회복을 응원합니다 💪 도리도리한의원'},
+  {id:'review',label:'후기 요청',text:'{name}님, 지난번 진료는 어떠셨나요? 😊 네이버 플레이스에 소중한 후기를 남겨주시면 저희에게 큰 힘이 됩니다! 도리도리한의원'},
+  {id:'birthday',label:'생일 축하',text:'🎂 {name}님, 생일을 진심으로 축하드립니다! 건강하고 행복한 하루 되세요 😊 도리도리한의원 드림'},
+  {id:'custom',label:'직접 입력',text:''},
 ];
 
 // ── 유틸 ──────────────────────────────────────────────
@@ -3010,6 +3015,20 @@ function renderHappyCall(){
         <button class="btn" onclick="hcAddManual('${d}')">${I.plus} 추가</button>
         <button class="btn" onclick="hcDownloadExcel('${d}')">${I.dl}</button>
       </div>
+      <!-- 솔라피 발송 버튼 -->
+      ${S.solapiKey&&S.solapiSecret&&S.solapiSender?`
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px">
+        <div style="font-size:12px;font-weight:600;color:#0369a1;width:100%;margin-bottom:4px">📱 솔라피 문자 발송</div>
+        <button type="button" class="btn btn-primary" onclick="hcSendApptAll('${d}')" style="background:#2563eb;border-color:#2563eb">
+          📋 예약확인 문자 일괄발송 (${hcs.filter(h=>h.phone&&h.status!=='cancel').length}명)
+        </button>
+        <button type="button" class="btn" onclick="hcSendThanks('${d}')" style="background:#059669;color:#fff;border-color:#059669">
+          🙏 방문감사 문자 (신환·TA초진 ${hcs.filter(h=>h.phone&&['신환','ta초진'].includes(h.visitType)).length}명)
+        </button>
+      </div>`:`
+      <div style="margin-bottom:12px;padding:10px 14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e">
+        ⚠️ 문자 발송을 사용하려면 <b>설정 페이지</b>에서 솔라피 API 키를 입력하세요
+      </div>`}
       <!-- 통계 카드 -->
       <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px">
         <div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:10px;text-align:center;cursor:pointer" onclick="showHCListPopup('${d}','all')">
@@ -3362,6 +3381,88 @@ window.hcUpd=(d,id,field,val)=>{
     }
   }
 };
+// ── 솔라피 공통 발송 함수 ──────────────────────────────
+async function solapiSend(to, text){
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return {ok:false,reason:'솔라피 미설정'};
+  try{
+    const enc=new TextEncoder();
+    const HMAC=async function(k,m){
+      const key=await crypto.subtle.importKey('raw',enc.encode(k),{name:'HMAC',hash:'SHA-256'},false,['sign']);
+      const sig=await crypto.subtle.sign('HMAC',key,enc.encode(m));
+      return Array.from(new Uint8Array(sig)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
+    };
+    const ts=Date.now().toString();
+    const salt=Math.random().toString(36).slice(2);
+    const sig=await HMAC(S.solapiSecret,ts+salt);
+    const resp=await fetch('https://api.solapi.com/messages/v4/send',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'HMAC-SHA256 apiKey='+S.solapiKey+', date='+ts+', salt='+salt+', signature='+sig},
+      body:JSON.stringify({message:{to:to.replace(/-/g,''),from:S.solapiSender,text:text}})
+    });
+    return {ok:resp.ok,status:resp.status};
+  }catch(e){return {ok:false,reason:e.message};}
+}
+
+// ── ① 당일 예약자 전체 → 예약확인 문자 ─────────────
+window.hcSendApptAll=async function(d){
+  const hcs=getHappyCalls(d);
+  const targets=hcs.filter(function(h){return h.phone&&h.status!=='cancel';});
+  if(!targets.length) return showToast('발송 대상이 없습니다','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return showToast('설정 페이지에서 솔라피 API를 먼저 설정하세요','err');
+  const names=targets.map(function(h){return h.patientName+'('+h.phone+')';}).join('\n');
+  if(!confirm(targets.length+'명에게 예약 확인 문자를 발송할까요?\n\n'+names)) return;
+  showToast('📤 '+targets.length+'명 발송 중...');
+  var ok=0,fail=0,noPhone=hcs.filter(function(h){return !h.phone;}).length;
+  const tmplTxt='안녕하세요 😊 {name}님, 오늘 도리도리한의원 예약이 확인되었습니다. 편안하게 오세요!';
+  for(var i=0;i<targets.length;i++){
+    var h=targets[i];
+    var txt=tmplTxt.replace(/{name}/g,h.patientName);
+    var res=await solapiSend(h.phone,txt);
+    S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:h.patientName,to:h.phone,type:'예약확인',text:txt,status:res.ok?'success':'error'});
+    if(res.ok) ok++; else fail++;
+  }
+  save('messageLogs');
+  if(_sb&&S.sbConnected) sbSave('messageLogs').catch(function(e){console.error(e);});
+  var msg='✅ 예약확인 '+ok+'명 발송 완료';
+  if(fail) msg+=' / ❌ '+fail+'명 실패';
+  if(noPhone) msg+=' (번호없음 '+noPhone+'명 제외)';
+  showToast(msg);
+};
+
+// ── ② 당일 신환 + TA초진 → 방문감사 알림 ───────────
+window.hcSendThanks=async function(d){
+  const hcs=getHappyCalls(d);
+  const NEW_TYPES=['신환','ta초진'];
+  const targets=hcs.filter(function(h){return h.phone&&NEW_TYPES.includes(h.visitType);});
+  if(!targets.length) return showToast('당일 신환/TA초진 환자가 없습니다','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return showToast('설정 페이지에서 솔라피 API를 먼저 설정하세요','err');
+  const names=targets.map(function(h){return h.patientName+'('+h.visitType+')';}).join('\n');
+  if(!confirm(targets.length+'명에게 방문 감사 문자를 발송할까요?\n\n'+names)) return;
+  showToast('📤 '+targets.length+'명 방문감사 발송 중...');
+  var ok=0,fail=0;
+  const tmplNew='안녕하세요 {name}님 😊 오늘 도리도리한의원을 처음 방문해 주셔서 진심으로 감사드립니다! 치료 관련 궁금한 점이 있으시면 언제든 연락 주세요. 빠른 회복을 응원합니다 🙏 도리도리한의원';
+  const tmplTA='안녕하세요 {name}님 😊 오늘 도리도리한의원을 방문해 주셔서 감사드립니다. 교통사고 치료 관련 궁금한 점은 언제든 연락 주세요! 빠른 회복을 응원합니다 💪 도리도리한의원';
+  for(var i=0;i<targets.length;i++){
+    var h=targets[i];
+    var txt=(h.visitType==='ta초진'?tmplTA:tmplNew).replace(/{name}/g,h.patientName);
+    var res=await solapiSend(h.phone,txt);
+    S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:h.patientName,to:h.phone,type:'방문감사('+h.visitType+')',text:txt,status:res.ok?'success':'error'});
+    if(res.ok) ok++; else fail++;
+  }
+  save('messageLogs');
+  if(_sb&&S.sbConnected) sbSave('messageLogs').catch(function(e){console.error(e);});
+  showToast('✅ 방문감사 '+ok+'명 발송 완료'+(fail?' / ❌ '+fail+'명 실패':''));
+};
+
+window.testSolapiSend=async function(){
+  const testNum=prompt('테스트 수신 번호 입력 (예: 01012345678):');
+  if(!testNum) return;
+  showToast('📤 테스트 문자 발송 중...');
+  const res=await solapiSend(testNum,'[도리도리한의원] 솔라피 연동 테스트 문자입니다 😊');
+  if(res.ok) showToast('✅ 테스트 발송 성공!');
+  else showToast('❌ 발송 실패: '+(res.reason||res.status),'err');
+};
+
 window.hcDel=(d,id)=>{
   if(!confirm('삭제하시겠습니까?'))return;
   S.happycalls[d]=(S.happycalls[d]||[]).filter(h=>h.id!==id);
@@ -3913,13 +4014,30 @@ function renderSettings(){
       <div class="form-group"><label class="lbl">이메일</label><input class="form-inp" value="${(S.user.email||'').replace(/"/g,'&quot;')}" oninput="S.user.email=this.value"></div>
       <button class="btn btn-primary" onclick="save('user');showToast('저장됨 ✓')">저장</button>
     </div>
-    <div class="setting-section">
-      <div class="setting-title">📱 Solapi SMS 연동</div>
-      <div class="form-group"><label class="lbl">API Key</label><input class="form-inp" type="password" placeholder="API Key 입력" value="${S.solapiKey}" oninput="S.solapiKey=this.value"></div>
-      <div class="form-group"><label class="lbl">API Secret</label><input class="form-inp" type="password" placeholder="API Secret 입력" value="${S.solapiSecret}" oninput="S.solapiSecret=this.value"></div>
-      <div class="form-group"><label class="lbl">발신 번호</label><input class="form-inp" placeholder="01012345678" value="${S.solapiSender}" oninput="S.solapiSender=this.value"></div>
-      <button class="btn btn-primary" onclick="save('solapiKey');save('solapiSecret');save('solapiSender');showToast('저장됨 ✓')">저장</button>
-      ${S.solapiKey?'<span class="badge badge-green" style="margin-left:10px">연동됨</span>':'<span class="badge badge-gray" style="margin-left:10px">미연동 (시뮬레이션 모드)</span>'}
+    <div class="setting-section" style="border:2px solid ${S.solapiKey&&S.solapiSecret&&S.solapiSender?'#a7f3d0':'#e5e7eb'};background:${S.solapiKey&&S.solapiSecret&&S.solapiSender?'#f0fdf4':'#fff'}">
+      <div class="setting-title">📱 Solapi SMS/알림톡 연동 ${S.solapiKey&&S.solapiSecret&&S.solapiSender?'<span class="badge badge-green">연동됨</span>':'<span class="badge badge-gray">미연동</span>'}</div>
+      <div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px;color:#92400e">
+        <b>📌 설정 방법</b><br>
+        1. <a href="https://solapi.com" target="_blank" style="color:#2563eb">solapi.com</a> 가입 후 대시보드 접속<br>
+        2. 개발 → API Key 관리 → API Key/Secret 복사<br>
+        3. 설정 → 발신번호 → 발신번호 등록 (본인인증 필요)<br>
+        4. 아래에 입력 후 저장 → 해피콜 페이지에서 일괄발송 버튼 활성화
+      </div>
+      <div class="form-group"><label class="lbl">API Key</label><input class="form-inp" type="password" placeholder="NCSA..." value="${S.solapiKey}" oninput="S.solapiKey=this.value.trim()"></div>
+      <div class="form-group"><label class="lbl">API Secret</label><input class="form-inp" type="password" placeholder="시크릿 키 입력" value="${S.solapiSecret}" oninput="S.solapiSecret=this.value.trim()"></div>
+      <div class="form-group"><label class="lbl">발신 번호</label><input class="form-inp" placeholder="01012345678 (- 없이 입력)" value="${S.solapiSender}" oninput="S.solapiSender=this.value.replace(/-/g,'').trim()"></div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <button type="button" class="btn btn-primary" onclick="save('solapiKey');save('solapiSecret');save('solapiSender');showToast('솔라피 설정 저장됨 ✓');render()">💾 저장</button>
+        ${S.solapiKey&&S.solapiSecret&&S.solapiSender?`<button type="button" class="btn" onclick="testSolapiSend()" style="background:#059669;color:#fff;border-color:#059669">📤 테스트 발송</button>`:''}
+      </div>
+      ${S.solapiKey&&S.solapiSecret&&S.solapiSender?`
+      <div style="margin-top:14px;padding:12px;background:#eff6ff;border-radius:8px;font-size:12px">
+        <b style="color:#1d4ed8">✅ 연동 완료 — 해피콜 페이지에서 사용 가능한 기능</b><br>
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+          <span>📋 <b>예약확인 일괄발송</b> — 당일 해피콜 등록 전체 환자에게 예약 확인 문자</span>
+          <span>🙏 <b>방문감사 발송</b> — 당일 신환 + TA초진 환자에게 방문 감사 알림</span>
+        </div>
+      </div>`:''}
     </div>
     <div class="setting-section">
       <div class="setting-title">💾 데이터 백업 / 복원</div>
