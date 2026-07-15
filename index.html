@@ -2030,11 +2030,11 @@ function renderDashboard(){
               <td>
                 <button class="noshow-btn${r.noShow?' active':''}"
                   style="${r.noShow?'background:#fef2f2;color:#dc2626;border-color:#fca5a5;font-weight:700':''}"
-                  onclick="togQuickNoshow(${i})">
+                  onclick="event.stopPropagation();togQuickNoshow(${i})">
                   ${r.noShow?'✓ 노쇼':'노쇼'}
                 </button>
               </td>
-              <td><button class="btn btn-sm" style="font-size:10px;padding:1px 6px;${r.noShow?'opacity:.5':''}" onclick="S.ledgerDate='${r.appointmentDate}';nav('ledger')">📋</button></td>
+              <td><button class="btn btn-sm" style="font-size:10px;padding:1px 6px;${r.noShow?'opacity:.5':''}" onclick="event.stopPropagation();S.ledgerDate='${r.appointmentDate}';nav('ledger')">📋</button></td>
             </tr>`).join('')}
             </tbody>
           </table>
@@ -2084,7 +2084,7 @@ function renderDashboard(){
             <td><input class="tci" placeholder="메모" value="${(r.memo||'').replace(/"/g,'&quot;')}" oninput="updQuick(${i},'memo',this.value)"></td>
             <td style="width:70px">
               <div class="row-acts">
-                <button class="ico-btn dl-btn" title="삭제" onclick="delQuick(${i})">${I.trash}</button>
+                <button class="ico-btn dl-btn" title="삭제" onclick="event.stopPropagation();delQuick(${i})">${I.trash}</button>
               </div>
             </td>
           </tr>`;}).join('')}
