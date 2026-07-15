@@ -1021,7 +1021,7 @@ function getWeekData(wk){
   return all;
 }
 
-function nav(p){S.page=p;S.editId=null;S.modal=null;S.searchQ='';S.ledgerAcOpen=null;S.ptPage=1;render()}
+function nav(p){S.page=p;S.editId=null;S.modal=null;S.searchQ='';S.ledgerAcOpen=null;S.ptPage=1;if(p!=='dashboard')S.quickAppts=[];render()}
 
 // 환자 검색 - 포커스 유지하면서 테이블만 업데이트
 var _ptSearchTimer=null;
@@ -1038,6 +1038,8 @@ window.updQuick=function(i,field,val){
 window.delQuick=function(i){
   if(!S.quickAppts) return;
   S.quickAppts.splice(i,1);
+  // render 전 현재 페이지 강제 유지
+  S.page='dashboard';
   render();
 };
 window.updQuickAC=function(i,val){
@@ -2004,8 +2006,8 @@ function renderDashboard(){
       <div class="section-hdr" style="flex-wrap:wrap;gap:8px">
         <div class="section-title">📞 당일 추가예약</div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
-          <button class="btn btn-sm" style="background:#2563eb;color:#fff;border-color:#2563eb" onclick="addQuickAppt()">+ 행 추가</button>
-          ${S.quickAppts&&S.quickAppts.length>0?`<button class="btn btn-sm" style="background:#059669;color:#fff;border-color:#059669" onclick="saveQuickAppts()">💾 저장</button>`:''}
+          <button type="button" class="btn btn-sm" style="background:#2563eb;color:#fff;border-color:#2563eb" onclick="addQuickAppt()">+ 행 추가</button>
+          ${S.quickAppts&&S.quickAppts.length>0?`<button type="button" class="btn btn-sm" style="background:#059669;color:#fff;border-color:#059669" onclick="saveQuickAppts()">💾 저장</button>`:''}
         </div>
       </div>
       ${S.quickApptsHistory&&S.quickApptsHistory.length>0?`
@@ -2030,11 +2032,11 @@ function renderDashboard(){
               <td>
                 <button class="noshow-btn${r.noShow?' active':''}"
                   style="${r.noShow?'background:#fef2f2;color:#dc2626;border-color:#fca5a5;font-weight:700':''}"
-                  onclick="event.stopPropagation();togQuickNoshow(${i})">
+                  type="button" onclick="event.stopPropagation();togQuickNoshow(${i})">
                   ${r.noShow?'✓ 노쇼':'노쇼'}
                 </button>
               </td>
-              <td><button class="btn btn-sm" style="font-size:10px;padding:1px 6px;${r.noShow?'opacity:.5':''}" onclick="event.stopPropagation();S.ledgerDate='${r.appointmentDate}';nav('ledger')">📋</button></td>
+              <td><button class="btn btn-sm" style="font-size:10px;padding:1px 6px;${r.noShow?'opacity:.5':''}" type="button" onclick="event.stopPropagation();S.ledgerDate='${r.appointmentDate}';nav('ledger')">📋</button></td>
             </tr>`).join('')}
             </tbody>
           </table>
@@ -2084,7 +2086,7 @@ function renderDashboard(){
             <td><input class="tci" placeholder="메모" value="${(r.memo||'').replace(/"/g,'&quot;')}" oninput="updQuick(${i},'memo',this.value)"></td>
             <td style="width:70px">
               <div class="row-acts">
-                <button class="ico-btn dl-btn" title="삭제" onclick="event.stopPropagation();delQuick(${i})">${I.trash}</button>
+                <button type="button" class="ico-btn dl-btn" title="삭제" onclick="event.stopPropagation();event.preventDefault();delQuick(${i});return false;">${I.trash}</button>
               </div>
             </td>
           </tr>`;}).join('')}
