@@ -2143,7 +2143,85 @@ function renderDashboard(){
       ${S.messageLogs.length===0?'<div class="no-data">발송 내역 없음</div>':`<div style="overflow-x:auto"><table><thead><tr><th>발송일시</th><th>환자명</th><th>수신번호</th><th>유형</th><th>상태</th><th>내용</th></tr></thead><tbody>
       ${S.messageLogs.slice(0,10).map(l=>`<tr><td style="font-size:11px;color:#6b7280;white-space:nowrap">${l.createdAt}</td><td>${l.patientName||'-'}</td><td style="font-family:monospace;font-size:12px">${l.to}</td><td><span class="badge badge-gray">${l.type}</span></td><td><span class="badge ${l.status==='success'?'badge-green':'badge-red'}">${l.status==='success'?'성공':'실패'}</span></td><td style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${l.text}</td></tr>`).join('')}</tbody></table></div>`}
     </div>
+
+    <!-- ── 한줄 요약 보고서 ── -->
+    ${(()=>{
+      const ystD=addDays(td,-1);
+      const ystRows=getLedger(ystD).filter(function(r){return !r._divider&&(r.patientName||r.chartNumber);});
+      if(!ystRows.length) return '';
+
+      // 환자 구분별
+      const total=ystRows.length;
+      const shinPts=ystRows.filter(function(r){return r.category==='신환';});
+      const taChojin=ystRows.filter(function(r){return r.category==='ta초진';});
+      const taPts=ystRows.filter(function(r){return r.category==='ta'||r.category==='ta일반';});
+      const geonboPts=ystRows.filter(function(r){return r.category==='건보추나';});
+      // 당일 예약 (appointmentDate가 전날인 경우)
+      const apptPts=ystRows.filter(function(r){return r.appointmentDate===ystD;});
+
+      // 한약 차수 구분 (note 필드 있는 환자)
+      const hanyakPts=ystRows.filter(function(r){return r.note&&r.note.trim();});
+      // noteDays 기준: ~30일=1차, 31~90=2차, 91~=3차
+      const h1=hanyakPts.filter(function(r){return (r.noteDays||0)<=30;});
+      const h2=hanyakPts.filter(function(r){return (r.noteDays||0)>30&&(r.noteDays||0)<=90;});
+      const h3=hanyakPts.filter(function(r){return (r.noteDays||0)>90;});
+      // 다이어트
+      const dietPts=ystRows.filter(function(r){return r.note&&r.note.includes('다이어트');});
+
+      function names(arr){return arr.map(function(r){return r.patientName||'(이름없음)';}).join(', ');}
+
+      const lines=[];
+      lines.push(fmtDot(ystD)+' 일계표 기준 한줄 보고');
+      lines.push('');
+      lines.push('▶ 총 환자 '+total+'명');
+      lines.push('▶ 신환 '+shinPts.length+'명'+(shinPts.length?' ('+names(shinPts)+')':''));
+      lines.push('▶ TA초진 '+taChojin.length+'명'+(taChojin.length?' ('+names(taChojin)+')':''));
+      lines.push('▶ TA '+taPts.length+'명'+(taPts.length?' ('+names(taPts)+')':''));
+      lines.push('▶ 건보추나 '+geonboPts.length+'명'+(geonboPts.length?' ('+names(geonboPts)+')':''));
+      lines.push('▶ 당일예약 '+apptPts.length+'명'+(apptPts.length?' ('+names(apptPts)+')':''));
+      lines.push('▶ 1차 한약 '+h1.length+'명'+(h1.length?' ('+names(h1)+')':''));
+      lines.push('▶ 2차 한약 '+h2.length+'명'+(h2.length?' ('+names(h2)+')':''));
+      lines.push('▶ 3차 한약 '+h3.length+'명'+(h3.length?' ('+names(h3)+')':''));
+      lines.push('▶ 다이어트 '+dietPts.length+'명'+(dietPts.length?' ('+names(dietPts)+')':''));
+
+      const summaryText=lines.join('\n');
+
+      return '<div class="section-card" style="margin-top:16px;border:2px solid #2563eb;background:#f0f7ff">'
+        +'<div class="section-hdr" style="background:#2563eb;margin:-1px -1px 0;border-radius:9px 9px 0 0;padding:10px 16px">'
+        +'<div class="section-title" style="color:#fff;margin:0">📝 한줄 요약 보고서 <span style="font-size:11px;font-weight:400;opacity:.8">('+fmtDot(ystD)+' 일계표 기준)</span></div>'
+        +'<button type="button" onclick="copyDailySummary()" style="background:#fff;color:#2563eb;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">📋 복사</button>'
+        +'</div>'
+        +'<div style="padding:16px">'
+        +'<div id="daily-summary-text" style="font-family:\'Noto Sans KR\',sans-serif;font-size:13px;line-height:2;white-space:pre-wrap;color:#1e293b">'+summaryText+'</div>'
+        +'</div>'
+        +'</div>';
+    })()}
   </div>`;
+}
+
+window.copyDailySummary=function(){
+  const el=document.getElementById('daily-summary-text');
+  if(!el) return showToast('요약 없음','err');
+  const text=el.innerText||el.textContent;
+  if(navigator.clipboard&&window.isSecureContext){
+    navigator.clipboard.writeText(text).then(function(){
+      showToast('📋 클립보드에 복사됨!');
+    }).catch(function(){
+      fallbackCopy(text);
+    });
+  }else{
+    fallbackCopy(text);
+  }
+};
+function fallbackCopy(text){
+  const ta=document.createElement('textarea');
+  ta.value=text;
+  ta.style.position='fixed';ta.style.top='-9999px';
+  document.body.appendChild(ta);
+  ta.select();
+  try{document.execCommand('copy');showToast('📋 복사됨!');}
+  catch(e){showToast('복사 실패 - 직접 선택해주세요','err');}
+  document.body.removeChild(ta);
 }
 
 window.togNS=(d,id)=>{
