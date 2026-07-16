@@ -2177,7 +2177,12 @@ function renderDashboard(){
       lines.push('▶ 신환 '+shinPts.length+'명'+(shinPts.length?' ('+names(shinPts)+')':''));
       lines.push('▶ TA초진 '+taChojin.length+'명'+(taChojin.length?' ('+names(taChojin)+')':''));
       lines.push('▶ TA '+taPts.length+'명'+(taPts.length?' ('+names(taPts)+')':''));
+      const jaejinPts=ystRows.filter(function(r){return r.category==='재진';});
+      const taChanaPts=ystRows.filter(function(r){return r.category==='ta추나';});
+
+      lines.push('▶ 재진 '+jaejinPts.length+'명'+(jaejinPts.length?' ('+names(jaejinPts)+')':''));
       lines.push('▶ 건보추나 '+geonboPts.length+'명'+(geonboPts.length?' ('+names(geonboPts)+')':''));
+      lines.push('▶ TA추나 '+taChanaPts.length+'명'+(taChanaPts.length?' ('+names(taChanaPts)+')':''));
       lines.push('▶ 당일예약 '+apptPts.length+'명'+(apptPts.length?' ('+names(apptPts)+')':''));
       lines.push('▶ 1차 한약 '+h1.length+'명'+(h1.length?' ('+names(h1)+')':''));
       lines.push('▶ 2차 한약 '+h2.length+'명'+(h2.length?' ('+names(h2)+')':''));
