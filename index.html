@@ -622,6 +622,19 @@ async function sbLoadAll(){
       if(whStr){ const wh=JSON.parse(whStr); S.wardHistory=Array.isArray(wh)?wh:[]; }
     }catch(e){}
 
+    // ── settings 테이블에서 API 키 등 불러오기
+    try{
+      const sets=await _sb.from('settings').select('key,value');
+      if(sets.data&&sets.data.length){
+        sets.data.forEach(function(row){
+          if(SETTINGS_KEYS.includes(row.key)){
+            try{S[row.key]=JSON.parse(row.value);}
+            catch(e){S[row.key]=row.value||'';}
+          }
+        });
+      }
+    }catch(e){console.warn('settings 로드 오류:',e);}
+
     showLoading(false);
     return true;
   }catch(e){
@@ -731,6 +744,11 @@ async function sbSave(key){
       const{error}=await _sb.from('happycalls').upsert(rows,{onConflict:'id'});
       if(error)console.error('happycalls 오류:',error);
     }
+    else if(SETTINGS_KEYS.includes(key)){
+      const val=typeof S[key]==='object'?JSON.stringify(S[key]):String(S[key]||'');
+      const{error}=await _sb.from('settings').upsert([{key:key,value:val,updated_at:new Date().toISOString()}],{onConflict:'key'});
+      if(error)console.error('settings 저장 오류:',key,error);
+    }
 
   }catch(e){
     _isSaving=false; // 오류 시도 플래그 해제
@@ -807,6 +825,7 @@ function showLoading(show){
 }
 
 const SB_KEYS=['patients','ledger','employees','schedule','messageLogs','inpatients','happycalls'];
+const SETTINGS_KEYS=['solapiKey','solapiSecret','solapiSender','user'];
 
 function save(key){
   // 1. localStorage (오프라인 백업)
@@ -4027,7 +4046,14 @@ function renderSettings(){
       <div class="form-group"><label class="lbl">API Secret</label><input class="form-inp" type="password" placeholder="시크릿 키 입력" value="${S.solapiSecret}" oninput="S.solapiSecret=this.value.trim()"></div>
       <div class="form-group"><label class="lbl">발신 번호</label><input class="form-inp" placeholder="01012345678 (- 없이 입력)" value="${S.solapiSender}" oninput="S.solapiSender=this.value.replace(/-/g,'').trim()"></div>
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-        <button type="button" class="btn btn-primary" onclick="save('solapiKey');save('solapiSecret');save('solapiSender');showToast('솔라피 설정 저장됨 ✓');render()">💾 저장</button>
+        <button type="button" class="btn btn-primary" onclick="
+  save('solapiKey');save('solapiSecret');save('solapiSender');
+  if(_sb&&S.sbConnected){
+    Promise.all([sbSave('solapiKey'),sbSave('solapiSecret'),sbSave('solapiSender')])
+    .then(function(){showToast('✅ 솔라피 설정 저장됨 (DB 동기화 완료)');render();})
+    .catch(function(){showToast('✅ 로컬 저장됨 (DB 동기화 실패)');render();});
+  }else{showToast('✅ 솔라피 설정 저장됨 (로컬)');render();}
+">💾 저장</button>
         ${S.solapiKey&&S.solapiSecret&&S.solapiSender?`<button type="button" class="btn" onclick="testSolapiSend()" style="background:#059669;color:#fff;border-color:#059669">📤 테스트 발송</button>`:''}
       </div>
       ${S.solapiKey&&S.solapiSecret&&S.solapiSender?`
