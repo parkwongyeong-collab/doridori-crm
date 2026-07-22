@@ -3768,63 +3768,188 @@ window.delEmp=(name)=>{if(!confirm(`${name}을(를) 삭제하시겠습니까?`))
 
 // ── 알림톡 ─────────────────────────────────────────────
 function renderMessages(){
-  const selPt=S.msgPatientId?S.patients.find(p=>p.id===S.msgPatientId):null;
-  const tmpl=MSG_TEMPLATES.find(t=>t.id===S.msgTemplate);
-  let txt=S.msgText||tmpl?.text||'';
-  if(selPt){txt=txt.replace('{name}',selPt.name).replace('{time}','')}
-  return`<div class="content">
-    <div class="page-title">💬 알림톡 / SMS 전송</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div class="section-card" style="padding:20px">
-        <div class="section-title" style="margin-bottom:14px">환자 선택</div>
-        <input class="form-inp" style="margin-bottom:10px" placeholder="환자 검색..." oninput="S.searchQ=this.value;S.ptPage=1;render()" value="${S.searchQ.replace(/"/g,'&quot;')}">
-        <div style="max-height:300px;overflow-y:auto">
-        ${S.searchQ?searchPt(S.searchQ).map(p=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;cursor:pointer;${S.msgPatientId===p.id?'background:#eff6ff;':''}" onclick="S.msgPatientId='${p.id}';S.searchQ='';render()">
-          <div><div style="font-weight:500;font-size:13px">${p.name}</div><div style="font-size:11px;color:#6b7280">${p.chartNumber} · ${p.phone||''}</div></div>
-          ${S.msgPatientId===p.id?'<span class="badge badge-blue">선택됨</span>':''}
-        </div>`).join('')||'<div class="no-data">검색 결과 없음</div>':'<div class="no-data" style="padding:20px">이름 또는 차트번호를 입력하세요</div>'}
-        </div>
-        ${selPt?`<div style="margin-top:12px;padding:12px;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px"><div style="font-size:13px;font-weight:600;color:#065f46">${selPt.name}</div><div style="font-size:12px;color:#6b7280;margin-top:2px">${selPt.chartNumber} · ${selPt.phone||'번호없음'}</div></div>`:''}
-      </div>
-      <div class="section-card" style="padding:20px">
-        <div class="section-title" style="margin-bottom:14px">메시지 작성</div>
-        <div class="form-group">
-          <label class="lbl">템플릿</label>
-          <div style="display:flex;flex-wrap:wrap;gap:6px">
-            ${MSG_TEMPLATES.map(t=>`<span class="tag${S.msgTemplate===t.id?' active':''}" onclick="S.msgTemplate='${t.id}';S.msgText='';render()">${t.label}</span>`).join('')}
-          </div>
-        </div>
-        <div class="form-group">
-          <label class="lbl">내용</label>
-          <textarea class="form-inp" rows="4" oninput="S.msgText=this.value">${txt}</textarea>
-        </div>
-        ${selPt&&selPt.phone?`<button class="btn btn-primary" onclick="sendMsg()">📤 전송</button>`:`<div class="alert-warn" style="background:#fffbeb;border:1px solid #fcd34d;padding:10px;border-radius:8px;font-size:12px;color:#92400e">환자를 선택하고 전화번호가 있어야 전송 가능합니다.</div>`}
-      </div>
-    </div>
-    <div class="section-card" style="margin-top:16px">
-      <div class="section-hdr"><div class="section-title">발송 내역</div></div>
-      ${S.messageLogs.length===0?'<div class="no-data">내역 없음</div>':`<div style="overflow-x:auto"><table><thead><tr><th>발송일시</th><th>환자명</th><th>수신번호</th><th>유형</th><th>상태</th><th>내용</th></tr></thead><tbody>
-      ${S.messageLogs.slice(0,20).map(l=>`<tr><td style="font-size:11px;color:#6b7280">${l.createdAt}</td><td>${l.patientName||'-'}</td><td style="font-family:monospace;font-size:12px">${l.to}</td><td><span class="badge badge-gray">${l.type}</span></td><td><span class="badge ${l.status==='success'?'badge-green':'badge-red'}">${l.status==='success'?'성공':'실패'}</span></td><td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">${l.text}</td></tr>`).join('')}</tbody></table></div>`}
-    </div>
-  </div>`;
+  if(!S.msgSelectedPts)S.msgSelectedPts=[];
+  if(!S.msgSearchQ)S.msgSearchQ='';
+  const tmpl=MSG_TEMPLATES.find(function(t){return t.id===S.msgTemplate;});
+  var txt=S.msgText!==undefined?S.msgText:(tmpl?tmpl.text:'');
+  const todayPts=getLedger(todayStr()).filter(function(r){return !r._divider&&r.patientName;});
+  const tomorrowPts=getLedger(addDays(todayStr(),1)).filter(function(r){return !r._divider&&r.patientName;});
+  const selectedPts=S.msgSelectedPts.map(function(id){return S.patients.find(function(p){return p.id===id;});}).filter(Boolean);
+
+  // 선택 환자 목록 HTML
+  var selListHtml='';
+  if(selectedPts.length>0){
+    var items=selectedPts.map(function(p){
+      return '<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #d1fae5">'
+        +'<span style="font-weight:500">'+p.name+'</span>'
+        +' <span style="color:#6b7280;font-size:11px">'+(p.phone||'번호없음')+'</span>'
+        +'<span onclick="toggleMsgPt(\''+p.id+'\')" style="cursor:pointer;color:#ef4444;font-size:18px;padding:0 4px">&times;</span>'
+        +'</div>';
+    }).join('');
+    selListHtml='<div style="margin-top:12px;padding:10px;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px">'
+      +'<div style="font-size:12px;font-weight:600;color:#065f46;margin-bottom:6px">&#x1F4E4; 발송 대상 '+selectedPts.length+'명</div>'
+      +items+'</div>';
+  }
+
+  // 검색 결과 HTML
+  var searchHtml='<div style="color:#9ca3af;font-size:12px;padding:10px;text-align:center">이름 또는 차트번호를 입력하세요</div>';
+  if(S.msgSearchQ&&S.msgSearchQ.length>0){
+    var results=searchPt(S.msgSearchQ).slice(0,15);
+    if(!results.length){
+      searchHtml='<div class="no-data">검색 결과 없음</div>';
+    }else{
+      searchHtml=results.map(function(p){
+        var isSel=S.msgSelectedPts.includes(p.id);
+        return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;cursor:pointer;border:1px solid '+(isSel?'#2563eb':'#e5e7eb')+';background:'+(isSel?'#eff6ff':'#fff')+';margin-bottom:4px" onclick="toggleMsgPt(\''+p.id+'\')">'
+          +'<div><div style="font-weight:500;font-size:13px">'+p.name+'</div>'
+          +'<div style="font-size:11px;color:#6b7280">'+p.chartNumber+' &middot; '+(p.phone||'번호없음')+'</div></div>'
+          +'<span style="font-size:20px">'+(isSel?'&#x2705;':'&#x25CB;')+'</span></div>';
+      }).join('');
+    }
+  }
+
+  // 발송 버튼
+  var withPhone=selectedPts.filter(function(p){return p.phone;});
+  var sendBtn='<div style="background:#fffbeb;border:1px solid #fcd34d;padding:10px;border-radius:8px;font-size:12px;color:#92400e">&#x1F448; 왼쪽에서 수신자를 선택하세요</div>';
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender){
+    sendBtn='<div style="background:#fff1f2;border:1px solid #fca5a5;padding:10px;border-radius:8px;font-size:12px;color:#dc2626">&#x26A0;&#xFE0F; 설정 페이지에서 솔라피 API를 먼저 입력하세요</div>';
+  }else if(withPhone.length>0){
+    sendBtn='<button type="button" class="btn btn-primary" onclick="sendMsgBulk()" style="width:100%;padding:12px;font-size:14px;font-weight:600">&#x1F4E4; '+withPhone.length+'명에게 발송하기</button>';
+  }
+
+  // 번호없음 경고
+  var noPhoneWarn='';
+  if(selectedPts.some(function(p){return !p.phone;})){
+    noPhoneWarn='<div style="margin-top:6px;font-size:11px;color:#dc2626">&#x26A0;&#xFE0F; 전화번호 없는 '+selectedPts.filter(function(p){return !p.phone;}).length+'명 제외</div>';
+  }
+
+  // 템플릿 버튼
+  var tmplBtns=MSG_TEMPLATES.map(function(t){
+    return '<span class="tag'+(S.msgTemplate===t.id?' active':'')+'" style="cursor:pointer;margin-bottom:4px" onclick="S.msgTemplate=\''+t.id+'\';S.msgText=undefined;render()">'+t.label+'</span>';
+  }).join('');
+
+  // 발송내역
+  var logHtml='<div class="no-data">발송 내역이 없습니다</div>';
+  if(S.messageLogs&&S.messageLogs.length>0){
+    var rows=S.messageLogs.slice(0,50).map(function(l){
+      var sc=l.status==='success'?'badge-green':'badge-red';
+      var st=l.status==='success'?'&#x2713; 성공':'&#x2717; 실패';
+      return '<tr><td style="font-size:11px;color:#6b7280;white-space:nowrap">'+(l.createdAt||'')+'</td>'
+        +'<td style="font-weight:500">'+(l.patientName||'-')+'</td>'
+        +'<td style="font-family:monospace;font-size:12px">'+(l.to||'')+'</td>'
+        +'<td><span class="badge badge-gray">'+(l.type||'')+'</span></td>'
+        +'<td><span class="badge '+sc+'">'+st+'</span></td>'
+        +'<td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px">'+(l.text||'')+'</td></tr>';
+    }).join('');
+    logHtml='<div style="overflow-x:auto"><table><thead><tr><th>발송일시</th><th>환자명</th><th>수신번호</th><th>유형</th><th>상태</th><th>내용</th></tr></thead><tbody>'+rows+'</tbody></table></div>';
+  }
+
+  return '<div class="content">'
+    +'<div class="page-title">&#x1F4AC; 알림톡 / SMS 전송</div>'
+    +'<div class="section-card" style="padding:14px;margin-bottom:14px;background:#f0f9ff;border:1px solid #bae6fd">'
+    +'<div style="font-size:12px;font-weight:600;color:#0369a1;margin-bottom:8px">&#x26A1; 빠른 발송</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button type="button" class="btn btn-primary" onclick="loadTodayPtsForMsg()" style="background:#0284c7;border-color:#0284c7;font-size:12px">&#x1F4CB; 오늘 예약자 ('+todayPts.length+'명)</button>'
+    +'<button type="button" class="btn" onclick="loadTomorrowPtsForMsg()" style="background:#7c3aed;color:#fff;border-color:#7c3aed;font-size:12px">&#x1F4C5; 내일 예약자 ('+tomorrowPts.length+'명)</button>'
+    +(S.msgSelectedPts.length>0?'<button type="button" class="btn" onclick="S.msgSelectedPts=[];S.msgSearchQ=\'\';render()" style="color:#ef4444;border-color:#ef4444;font-size:12px">&#x1F5D1;&#xFE0F; 초기화</button>':'')
+    +'</div></div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
+    +'<div class="section-card" style="padding:16px">'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
+    +'<div class="section-title">수신자 선택</div>'
+    +(S.msgSelectedPts.length>0?'<span class="badge badge-blue">'+S.msgSelectedPts.length+'명</span>':'')
+    +'</div>'
+    +'<input class="form-inp" style="margin-bottom:8px" placeholder="&#x1F50D; 이름 또는 차트번호..." oninput="S.msgSearchQ=this.value;render()" value="'+(S.msgSearchQ||'').replace(/"/g,'&quot;')+'" autocomplete="off">'
+    +'<div style="max-height:260px;overflow-y:auto">'+searchHtml+'</div>'
+    +selListHtml
+    +'</div>'
+    +'<div class="section-card" style="padding:16px">'
+    +'<div class="section-title" style="margin-bottom:12px">&#x270D;&#xFE0F; 메시지 작성</div>'
+    +'<div class="form-group"><label class="lbl">템플릿</label>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:4px">'+tmplBtns+'</div></div>'
+    +'<div class="form-group"><label class="lbl">내용 <span style="color:#9ca3af;font-size:10px">{name}→환자명 자동변환</span></label>'
+    +'<textarea class="form-inp" rows="5" style="resize:vertical" oninput="S.msgText=this.value" placeholder="메시지를 입력하세요...">'+txt+'</textarea>'
+    +'<div style="font-size:11px;color:#9ca3af;text-align:right">'+txt.length+'자</div></div>'
+    +sendBtn
+    +noPhoneWarn
+    +'</div></div>'
+    +'<div class="section-card" style="margin-top:14px">'
+    +'<div class="section-hdr"><div class="section-title">&#x1F4CB; 발송 내역</div>'
+    +(S.messageLogs&&S.messageLogs.length>0?'<button type="button" class="btn btn-sm" onclick="S.messageLogs=[];save(\'messageLogs\');render()" style="color:#ef4444;border-color:#ef4444">삭제</button>':'')
+    +'</div>'+logHtml+'</div>'
+    +'</div>';
 }
-window.sendMsg=async()=>{
-  const selPt=S.patients.find(p=>p.id===S.msgPatientId);
-  if(!selPt||!selPt.phone)return showToast('환자 및 전화번호를 확인하세요','err');
-  const tmpl=MSG_TEMPLATES.find(t=>t.id===S.msgTemplate);
-  let txt=S.msgText||tmpl?.text||'';
-  txt=txt.replace('{name}',selPt.name);
-  const logEntry={id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:selPt.name,to:selPt.phone,type:tmpl?.label||'직접입력',text:txt,status:'pending'};
-  if(S.solapiKey&&S.solapiSecret&&S.solapiSender){
-    try{
-      const HMAC=async(k,m)=>{const enc=new TextEncoder();const key=await crypto.subtle.importKey('raw',enc.encode(k),{name:'HMAC',hash:'SHA-256'},false,['sign']);const sig=await crypto.subtle.sign('HMAC',key,enc.encode(m));return Array.from(new Uint8Array(sig)).map(b=>b.toString(16).padStart(2,'0')).join('')};
-      const ts=Date.now().toString();const salt=Math.random().toString(36).slice(2);
-      const sig=await HMAC(S.solapiSecret,ts+salt);
-      const resp=await fetch('https://api.solapi.com/messages/v4/send',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`HMAC-SHA256 apiKey=${S.solapiKey}, date=${ts}, salt=${salt}, signature=${sig}`},body:JSON.stringify({message:{to:selPt.phone.replace(/-/g,''),from:S.solapiSender,text:txt}})});
-      logEntry.status=resp.ok?'success':'error';
-    }catch{logEntry.status='error';}
-  } else {logEntry.status='success';}
-  S.messageLogs.unshift(logEntry);save('messageLogs');showToast(logEntry.status==='success'?'전송 완료 ✓':'전송 실패','err');render();
+window.toggleMsgPt=function(id){
+  if(!S.msgSelectedPts)S.msgSelectedPts=[];
+  var idx=S.msgSelectedPts.indexOf(id);
+  if(idx>=0)S.msgSelectedPts.splice(idx,1);
+  else S.msgSelectedPts.push(id);
+  render();
+};
+
+window.loadTodayPtsForMsg=function(){
+  var rows=getLedger(todayStr()).filter(function(r){return !r._divider&&r.patientName;});
+  var ptIds=[];
+  rows.forEach(function(r){
+    var pt=S.patients.find(function(p){return p.name===r.patientName||p.chartNumber===r.chartNumber;});
+    if(pt&&!ptIds.includes(pt.id))ptIds.push(pt.id);
+  });
+  S.msgSelectedPts=ptIds;
+  S.msgTemplate='remind';
+  S.msgText=undefined;
+  S.msgSearchQ='';
+  render();
+  showToast('오늘 예약자 '+ptIds.length+'명 선택됨 ✓');
+};
+
+window.loadTomorrowPtsForMsg=function(){
+  var rows=getLedger(addDays(todayStr(),1)).filter(function(r){return !r._divider&&r.patientName;});
+  var ptIds=[];
+  rows.forEach(function(r){
+    var pt=S.patients.find(function(p){return p.name===r.patientName||p.chartNumber===r.chartNumber;});
+    if(pt&&!ptIds.includes(pt.id))ptIds.push(pt.id);
+  });
+  S.msgSelectedPts=ptIds;
+  S.msgTemplate='appt';
+  S.msgText=undefined;
+  S.msgSearchQ='';
+  render();
+  showToast('내일 예약자 '+ptIds.length+'명 선택됨 ✓');
+};
+
+window.sendMsgBulk=async function(){
+  if(!S.msgSelectedPts||!S.msgSelectedPts.length) return showToast('수신자를 선택하세요','err');
+  var tmpl=MSG_TEMPLATES.find(function(t){return t.id===S.msgTemplate;});
+  var baseTxt=S.msgText!==undefined?S.msgText:(tmpl?tmpl.text:'');
+  if(!baseTxt.trim()) return showToast('메시지 내용을 입력하세요','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return showToast('설정 페이지에서 솔라피 API를 먼저 설정하세요','err');
+  var targets=S.msgSelectedPts.map(function(id){return S.patients.find(function(p){return p.id===id;});}).filter(function(p){return p&&p.phone;});
+  if(!targets.length) return showToast('전화번호가 있는 환자가 없습니다','err');
+  var names=targets.map(function(p){return p.name;}).join(', ');
+  if(!confirm(targets.length+'명에게 메시지를 발송할까요?\n\n'+names)) return;
+  showToast('📤 '+targets.length+'명 발송 중...');
+  var ok=0,fail=0;
+  for(var i=0;i<targets.length;i++){
+    var pt=targets[i];
+    var txt=baseTxt.replace(/{name}/g,pt.name).replace(/{time}/g,'');
+    var res=await solapiSend(pt.phone,txt);
+    S.messageLogs.unshift({
+      id:uid(),
+      createdAt:new Date().toLocaleString('ko-KR'),
+      patientName:pt.name,
+      to:pt.phone,
+      type:tmpl?tmpl.label:'직접입력',
+      text:txt,
+      status:res.ok?'success':'error'
+    });
+    if(res.ok)ok++;else fail++;
+  }
+  save('messageLogs');
+  if(_sb&&S.sbConnected) sbSave('messageLogs').catch(function(e){console.error(e);});
+  showToast('✅ 발송 완료: '+ok+'명 성공'+(fail?' / ❌ '+fail+'명 실패':''));
+  S.msgSelectedPts=[];
+  S.msgSearchQ='';
+  render();
 };
 
 // ── 설정 ──────────────────────────────────────────────
