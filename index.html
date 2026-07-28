@@ -296,12 +296,7 @@ const CATEGORIES=['재진','신환','ta초진','ta','6개월재초진','건보�
 
 // 비급여 처방 프리셋 (처방명, 기간일수)
 // ── 사용자 계정 ─────────────────────────────────────
-const USERS=[
-  {email:'pwk2956@naver.com', pw:'qwe0984',    name:'관리자', role:'admin'},
-  {email:'doridori@naver.com',pw:'20161107jh#', name:'원장님', role:'doctor'},
-  {email:'lee@naver.com',     pw:'20161107jh!', name:'이직원', role:'staff'},
-  {email:'kim@naver.com',     pw:'20161107jh!', name:'김직원', role:'staff'},
-];
+// USERS 배열 제거 - Supabase Auth 로그인으로 대체
 
 // ROOMS 제거 (입원실 없음)
 
@@ -373,10 +368,10 @@ window.fmtKrw=fmtKrw;
 
 var S={
   page:'dashboard',editId:null,
-  patients:[],ledger:{},employees:['김간호','이실장','박치료사'],
+  patients:[],ledger:{},employees:[],
   schedule:{},messageLogs:[],inpatients:{},happycalls:{},
   ledgerDate:todayStr(),calMonth:todayStr().slice(0,7),scheduleMonth:todayStr().slice(0,7),happycallDate:todayStr(),
-  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],notices:{},statsTab:'daily',goalRevenue:0,
+  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],notices:{},statsTab:'daily',statsCustomStart:'',statsCustomEnd:'',goalRevenue:0,
   user:{name:'관리자',email:'pwk2956@naver.com',role:'admin'},
   solapiKey:'',solapiSecret:'',solapiSender:'',
   supabaseUrl:'https://mzdxunkqewctmognveqo.supabase.co',supabaseKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA',sbConnected:false,
@@ -878,6 +873,7 @@ function loadAll(){
     S.supabaseKey=DEFAULT_SB_KEY;
   }
   // 로그인 상태 복원
+  // 로컬 로그인 상태 임시 복원 (Supabase 세션은 init에서 처리)
   try{
     const li=localStorage.getItem('doridori__loggedIn');
     if(li==='1'){
@@ -885,7 +881,7 @@ function loadAll(){
       const savedUser=localStorage.getItem('doridori__user');
       if(savedUser){const u=JSON.parse(savedUser);S.user={name:u.name||'관리자',email:u.email||'',role:u.role||'staff'};}
     }
-  }catch{}
+  }catch(e){}
 }
 function getLastSaved(){try{return localStorage.getItem('doridori__lastSaved')||null;}catch{return null;}}
 function showToast(msg,type='ok'){S.toast={msg,type};render();setTimeout(()=>{S.toast=null;render()},2800)}
@@ -1390,16 +1386,15 @@ function updateBed(date,roomId,bedIdx,field,val){
 // 환자 검색
 function searchPt(q){
   if(!q||q.length<1)return[];
-  const lq=q.toLowerCase();
-  // Supabase 연결됐는데 환자 없으면 경고
+  const lq=q.toLowerCase().replace(/-/g,'');
   if(S.sbConnected && S.patients.length===0){
     console.warn('Supabase 연결됐지만 환자 데이터가 비어있음 - sbLoadAll 재시도');
   }
   return S.patients.filter(p=>
     (p.chartNumber||'').toLowerCase().includes(lq)||
     (p.name||'').toLowerCase().includes(lq)||
-    (p.phone||'').includes(lq)
-  ).slice(0,8);
+    (p.phone||'').replace(/-/g,'').includes(lq)
+  ).slice(0,20);
 }
 
 // ── SVG 아이콘 ─────────────────────────────────────────
@@ -1586,7 +1581,7 @@ function renderSidebar(){
           ${getLastSaved()} 저장됨
         </div>`:'<div style="font-size:10px;color:#f59e0b;margin-top:8px">⚠️ Supabase 미연결</div>'
       }
-      <div class="logout-btn" onclick="S.isLoggedIn=false;S.user={name:'',email:'',role:''};try{localStorage.removeItem('doridori__loggedIn');localStorage.removeItem('doridori__user');}catch{};render()">${I.logout} 로그아웃</div>
+      <div class="logout-btn" onclick="doLogout()">${I.logout} 로그아웃</div>
     </div>
   </div>`;
 }
@@ -3493,16 +3488,55 @@ async function solapiSend(to, text){
       const sig=await crypto.subtle.sign('HMAC',key,enc.encode(m));
       return Array.from(new Uint8Array(sig)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
     };
-    const ts=Date.now().toString();
-    const salt=Math.random().toString(36).slice(2);
-    const sig=await HMAC(S.solapiSecret,ts+salt);
+    // 솔라피 공식 인증: timestamp(ms) + salt → HMAC-SHA256
+    const ts=new Date().toISOString(); // ISO 형식 사용
+    const salt=Math.random().toString(36).slice(2,12);
+    const sig=await HMAC(S.solapiSecret, ts+salt);
+    const authHeader='HMAC-SHA256 apiKey='+S.solapiKey+', date='+ts+', salt='+salt+', signature='+sig;
+
+    // 발신/수신 번호 정리
+    const toNum=to.replace(/[^0-9]/g,'');
+    const fromNum=S.solapiSender.replace(/[^0-9]/g,'');
+
+    console.log('[솔라피] 발송 시도:', {to:toNum, from:fromNum, textLen:text.length});
+
     const resp=await fetch('https://api.solapi.com/messages/v4/send',{
       method:'POST',
-      headers:{'Content-Type':'application/json','Authorization':'HMAC-SHA256 apiKey='+S.solapiKey+', date='+ts+', salt='+salt+', signature='+sig},
-      body:JSON.stringify({message:{to:to.replace(/-/g,''),from:S.solapiSender,text:text}})
+      headers:{
+        'Content-Type':'application/json',
+        'Authorization':authHeader
+      },
+      body:JSON.stringify({
+        message:{
+          to:toNum,
+          from:fromNum,
+          text:text
+        }
+      })
     });
-    return {ok:resp.ok,status:resp.status};
-  }catch(e){return {ok:false,reason:e.message};}
+
+    // 응답 body 파싱
+    var bodyText='';
+    var body={};
+    try{
+      bodyText=await resp.text();
+      body=JSON.parse(bodyText);
+    }catch(e){ body={raw:bodyText}; }
+
+    console.log('[솔라피] 응답:', resp.status, body);
+
+    if(resp.ok){
+      return {ok:true, body:body};
+    }else{
+      var errCode=body.errorCode||String(resp.status);
+      var errMsg=body.errorMessage||bodyText||'알 수 없는 오류';
+      console.error('[솔라피] 오류:', errCode, errMsg);
+      return {ok:false, status:resp.status, errorCode:errCode, reason:errMsg};
+    }
+  }catch(e){
+    console.error('[솔라피] 예외:', e);
+    return {ok:false, reason:e.message};
+  }
 }
 
 // ── ① 당일 예약자 전체 → 예약확인 문자 ─────────────
@@ -3561,8 +3595,21 @@ window.testSolapiSend=async function(){
   if(!testNum) return;
   showToast('📤 테스트 문자 발송 중...');
   const res=await solapiSend(testNum,'[도리도리한의원] 솔라피 연동 테스트 문자입니다 😊');
-  if(res.ok) showToast('✅ 테스트 발송 성공!');
-  else showToast('❌ 발송 실패: '+(res.reason||res.status),'err');
+  if(res.ok){
+    showToast('✅ 테스트 발송 성공!');
+    alert('✅ 테스트 발송 성공!\n' + testNum + ' 로 발송되었습니다.');
+  }else{
+    // 오류 상세 팝업
+    var detail='❌ 발송 실패 (HTTP '+res.status+')\n\n'
+      +'오류코드: '+(res.errorCode||'-')+'\n'
+      +'오류내용: '+(res.reason||'-')+'\n\n'
+      +'[확인사항]\n'
+      +'- API Key / Secret 정확한지 확인\n'
+      +'- 발신번호 등록 완료됐는지 확인 (0317513575)\n'
+      +'- 잔액이 있는지 솔라피 대시보드 확인';
+    alert(detail);
+    showToast('❌ '+( res.errorCode||res.status||'발송실패'),'err');
+  }
 };
 
 window.hcDel=(d,id)=>{
@@ -3857,11 +3904,11 @@ function renderMessages(){
     +'<div class="section-card" style="padding:16px">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
     +'<div class="section-title">수신자 선택</div>'
-    +(S.msgSelectedPts.length>0?'<span class="badge badge-blue">'+S.msgSelectedPts.length+'명</span>':'')
+    +'<span id="msg-sel-badge" class="badge badge-blue">'+(S.msgSelectedPts.length>0?S.msgSelectedPts.length+'명':'')+'</span>'
     +'</div>'
-    +'<input class="form-inp" style="margin-bottom:8px" placeholder="&#x1F50D; 이름 또는 차트번호..." oninput="S.msgSearchQ=this.value;render()" value="'+(S.msgSearchQ||'').replace(/"/g,'&quot;')+'" autocomplete="off">'
-    +'<div style="max-height:260px;overflow-y:auto">'+searchHtml+'</div>'
-    +selListHtml
+    +'<input id="msg-search-inp" class="form-inp" style="margin-bottom:8px" placeholder="&#x1F50D; 이름, 차트번호, 전화번호 검색..." oninput="updateMsgSearch(this.value)" value="'+(S.msgSearchQ||'').replace(/"/g,'&quot;')+'" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">'
+    +'<div id="msg-search-results" style="max-height:260px;overflow-y:auto">'+searchHtml+'</div>'
+    +'<div id="msg-sel-panel">'+(selListHtml||'')+'</div>'
     +'</div>'
     +'<div class="section-card" style="padding:16px">'
     +'<div class="section-title" style="margin-bottom:12px">&#x270D;&#xFE0F; 메시지 작성</div>'
@@ -3870,7 +3917,7 @@ function renderMessages(){
     +'<div class="form-group"><label class="lbl">내용 <span style="color:#9ca3af;font-size:10px">{name}→환자명 자동변환</span></label>'
     +'<textarea class="form-inp" rows="5" style="resize:vertical" oninput="S.msgText=this.value" placeholder="메시지를 입력하세요...">'+txt+'</textarea>'
     +'<div style="font-size:11px;color:#9ca3af;text-align:right">'+txt.length+'자</div></div>'
-    +sendBtn
+    +'<div id="msg-send-btn">'+sendBtn+'</div>'
     +noPhoneWarn
     +'</div></div>'
     +'<div class="section-card" style="margin-top:14px">'
@@ -3879,19 +3926,103 @@ function renderMessages(){
     +'</div>'+logHtml+'</div>'
     +'</div>';
 }
+// 검색 결과만 DOM 직접 업데이트 (포커스 유지)
+window.updateMsgSearch=function(val){
+  S.msgSearchQ=val;
+  var box=document.getElementById('msg-search-results');
+  if(!box) return;
+  var q=val||'';
+  if(!q.trim()){
+    box.innerHTML='<div style="color:#9ca3af;font-size:12px;padding:10px;text-align:center">이름, 차트번호, 전화번호를 입력하세요</div>';
+    return;
+  }
+  var results=searchPt(q);
+  if(!results.length){
+    box.innerHTML='<div class="no-data">검색 결과 없음</div>';
+    return;
+  }
+  box.innerHTML=results.map(function(p){
+    var isSel=S.msgSelectedPts&&S.msgSelectedPts.includes(p.id);
+    return '<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;border-radius:6px;cursor:pointer;border:1px solid '+(isSel?'#2563eb':'#e5e7eb')+';background:'+(isSel?'#eff6ff':'#fff')+';margin-bottom:4px" onclick="toggleMsgPt(\''+p.id+'\')">'
+      +'<div>'
+      +'<div style="font-weight:500;font-size:13px">'+p.name+'</div>'
+      +'<div style="font-size:11px;color:#6b7280">차트 '+p.chartNumber+' &nbsp;|&nbsp; '+(p.phone||'번호없음')+'</div>'
+      +'</div>'
+      +'<span style="font-size:20px">'+(isSel?'&#x2705;':'&#x25CB;')+'</span>'
+      +'</div>';
+  }).join('');
+};
+
 window.toggleMsgPt=function(id){
   if(!S.msgSelectedPts)S.msgSelectedPts=[];
   var idx=S.msgSelectedPts.indexOf(id);
   if(idx>=0)S.msgSelectedPts.splice(idx,1);
   else S.msgSelectedPts.push(id);
-  render();
+  // 검색결과 하이라이트 즉시 갱신 (포커스 유지)
+  if(S.msgSearchQ&&S.msgSearchQ.trim()) updateMsgSearch(S.msgSearchQ);
+  // 선택 목록 + 발송버튼만 업데이트
+  updateMsgSelectedPanel();
+};
+
+// 선택 목록 + 발송버튼 패널만 업데이트 (포커스 유지)
+window.updateMsgSelectedPanel=function(){
+  var selectedPts=(S.msgSelectedPts||[]).map(function(id){return S.patients.find(function(p){return p.id===id;});}).filter(Boolean);
+
+  // 선택 카운트 뱃지
+  var badge=document.getElementById('msg-sel-badge');
+  if(badge) badge.textContent=selectedPts.length>0?selectedPts.length+'명':'';
+
+  // 선택 목록
+  var panel=document.getElementById('msg-sel-panel');
+  if(panel){
+    if(selectedPts.length>0){
+      var items=selectedPts.map(function(p){
+        return '<div style="display:flex;align-items:center;justify-content:space-between;font-size:12px;padding:4px 0;border-bottom:1px solid #d1fae5">'
+          +'<span><b>'+p.name+'</b> <span style="color:#6b7280">'+(p.phone||'번호없음')+'</span></span>'
+          +'<span onclick="toggleMsgPt(\''+p.id+'\')" style="cursor:pointer;color:#ef4444;font-size:18px;padding:0 4px;line-height:1">&times;</span>'
+          +'</div>';
+      }).join('');
+      panel.innerHTML='<div style="margin-top:12px;padding:10px;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px">'
+        +'<div style="font-size:12px;font-weight:600;color:#065f46;margin-bottom:6px">&#x1F4E4; 발송 대상 '+selectedPts.length+'명</div>'
+        +items+'</div>';
+    }else{
+      panel.innerHTML='';
+    }
+  }
+
+  // 발송 버튼
+  var sendWrap=document.getElementById('msg-send-btn');
+  if(sendWrap){
+    var withPhone=selectedPts.filter(function(p){return p.phone;});
+    if(!S.solapiKey||!S.solapiSecret||!S.solapiSender){
+      sendWrap.innerHTML='<div style="background:#fff1f2;border:1px solid #fca5a5;padding:10px;border-radius:8px;font-size:12px;color:#dc2626">&#x26A0;&#xFE0F; 설정 페이지에서 솔라피 API를 먼저 입력하세요</div>';
+    }else if(withPhone.length>0){
+      sendWrap.innerHTML='<button type="button" class="btn btn-primary" onclick="sendMsgBulk()" style="width:100%;padding:12px;font-size:14px;font-weight:600">&#x1F4E4; '+withPhone.length+'명에게 발송하기</button>';
+    }else if(selectedPts.length>0){
+      sendWrap.innerHTML='<div style="background:#fffbeb;border:1px solid #fcd34d;padding:10px;border-radius:8px;font-size:12px;color:#92400e">전화번호가 있는 환자가 없습니다</div>';
+    }else{
+      sendWrap.innerHTML='<div style="background:#fffbeb;border:1px solid #fcd34d;padding:10px;border-radius:8px;font-size:12px;color:#92400e">&#x1F448; 왼쪽에서 수신자를 선택하세요</div>';
+    }
+  }
 };
 
 window.loadTodayPtsForMsg=function(){
-  var rows=getLedger(todayStr()).filter(function(r){return !r._divider&&r.patientName;});
+  var todayDate=todayStr();
+  // 오늘 일계표 행 + 전체 일계표에서 appointmentDate=오늘인 행 모두 포함
+  var fromLedger=getLedger(todayDate).filter(function(r){return !r._divider&&r.patientName;});
+  var fromAppt=Object.values(S.ledger).flatMap(function(rs){return rs||[];})
+    .filter(function(r){return !r._divider&&r.patientName&&r.appointmentDate===todayDate;});
+  var allRows=fromLedger.concat(fromAppt);
+  // 중복 제거
+  var seen={};
+  allRows=allRows.filter(function(r){
+    var key=r.chartNumber||r.patientName;
+    if(seen[key])return false;
+    seen[key]=true;return true;
+  });
   var ptIds=[];
-  rows.forEach(function(r){
-    var pt=S.patients.find(function(p){return p.name===r.patientName||p.chartNumber===r.chartNumber;});
+  allRows.forEach(function(r){
+    var pt=S.patients.find(function(p){return p.chartNumber===r.chartNumber||(p.name===r.patientName&&!r.chartNumber);});
     if(pt&&!ptIds.includes(pt.id))ptIds.push(pt.id);
   });
   S.msgSelectedPts=ptIds;
@@ -3899,14 +4030,24 @@ window.loadTodayPtsForMsg=function(){
   S.msgText=undefined;
   S.msgSearchQ='';
   render();
-  showToast('오늘 예약자 '+ptIds.length+'명 선택됨 ✓');
+  showToast('오늘('+todayDate+') 예약자 '+ptIds.length+'명 선택됨 ✓');
 };
 
 window.loadTomorrowPtsForMsg=function(){
-  var rows=getLedger(addDays(todayStr(),1)).filter(function(r){return !r._divider&&r.patientName;});
+  var tmrDate=addDays(todayStr(),1);
+  // 전체 일계표에서 appointmentDate=내일인 행 검색 (오늘 일계표에 내일 예약 입력된 경우 포함)
+  var rows=Object.values(S.ledger).flatMap(function(rs){return rs||[];})
+    .filter(function(r){return !r._divider&&r.patientName&&r.appointmentDate===tmrDate;});
+  // 중복 제거
+  var seen={};
+  rows=rows.filter(function(r){
+    var key=r.chartNumber||r.patientName;
+    if(seen[key])return false;
+    seen[key]=true;return true;
+  });
   var ptIds=[];
   rows.forEach(function(r){
-    var pt=S.patients.find(function(p){return p.name===r.patientName||p.chartNumber===r.chartNumber;});
+    var pt=S.patients.find(function(p){return p.chartNumber===r.chartNumber||(p.name===r.patientName&&!r.chartNumber);});
     if(pt&&!ptIds.includes(pt.id))ptIds.push(pt.id);
   });
   S.msgSelectedPts=ptIds;
@@ -3914,7 +4055,7 @@ window.loadTomorrowPtsForMsg=function(){
   S.msgText=undefined;
   S.msgSearchQ='';
   render();
-  showToast('내일 예약자 '+ptIds.length+'명 선택됨 ✓');
+  showToast('내일('+tmrDate+') 예약자 '+ptIds.length+'명 선택됨 ✓');
 };
 
 window.sendMsgBulk=async function(){
@@ -4022,7 +4163,25 @@ function renderStats(){
   const weekly=getWeeklyStats();
   const monthly=getMonthlyStats();
 
-  const data=tab==='daily'?daily:tab==='weekly'?weekly:monthly;
+  // ── 기간 지정 통계 ──
+  function getCustomStats(){
+    const startD=S.statsCustomStart||addDays(today,-6);
+    const endD=S.statsCustomEnd||today;
+    const rows=[];
+    let cur=startD;
+    while(cur<=endD){
+      const dayRows=getLedger(cur).filter(r=>r.chartNumber||r.patientName);
+      const rev=dayRows.reduce((s,r)=>s+(+r.cashAmount||0)+(+r.transferAmount||0)+(+r.cardAmount||0),0);
+      const catCount={};
+      dayRows.forEach(r=>{if(r.category)catCount[r.category]=(catCount[r.category]||0)+1;});
+      rows.push({date:cur,count:dayRows.length,rev,catCount});
+      cur=addDays(cur,1);
+    }
+    return rows;
+  }
+  const custom=tab==='custom'?getCustomStats():[];
+
+  const data=tab==='daily'?daily:tab==='weekly'?weekly:tab==='monthly'?monthly:custom;
   const maxRev=Math.max(...data.map(d=>d.rev),1);
   const maxCount=Math.max(...data.map(d=>d.count),1);
 
@@ -4072,12 +4231,38 @@ function renderStats(){
 
     <!-- 탭 선택 -->
     <div style="display:flex;gap:4px;margin-bottom:12px">
-      ${['daily','weekly','monthly'].map((t,i)=>`
+      ${['daily','weekly','monthly','custom'].map((t,i)=>`
         <button class="btn${S.statsTab===t?' btn-primary':''}" style="font-size:13px"
           onclick="S.statsTab='${t}';render()">
-          ${'일별(14일)/주별(8주)/월별(6개월)'.split('/')[i]}
+          ${'일별(14일)/주별(8주)/월별(6개월)/기간지정'.split('/')[i]}
         </button>`).join('')}
     </div>
+    ${S.statsTab==='custom'?`
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px">
+      <span style="font-size:12px;font-weight:600;color:#374151">📅 기간 선택</span>
+      <input type="date" class="form-inp" style="width:140px;font-size:12px"
+        value="${S.statsCustomStart||addDays(todayStr(),-6)}"
+        onchange="S.statsCustomStart=this.value;render()">
+      <span style="color:#6b7280;font-size:13px">~</span>
+      <input type="date" class="form-inp" style="width:140px;font-size:12px"
+        value="${S.statsCustomEnd||todayStr()}"
+        max="${todayStr()}"
+        onchange="S.statsCustomEnd=this.value;render()">
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button type="button" class="btn btn-sm" onclick="S.statsCustomStart=addDays(todayStr(),-2);S.statsCustomEnd=todayStr();render()" style="font-size:11px">최근 3일</button>
+        <button type="button" class="btn btn-sm" onclick="S.statsCustomStart=addDays(todayStr(),-6);S.statsCustomEnd=todayStr();render()" style="font-size:11px">최근 7일</button>
+        <button type="button" class="btn btn-sm" onclick="S.statsCustomStart=addDays(todayStr(),-13);S.statsCustomEnd=todayStr();render()" style="font-size:11px">최근 2주</button>
+        <button type="button" class="btn btn-sm" onclick="S.statsCustomStart=todayStr().slice(0,7)+'-01';S.statsCustomEnd=todayStr();render()" style="font-size:11px">이번달</button>
+      </div>
+      <span style="font-size:12px;color:#2563eb;font-weight:600">
+        ${(()=>{
+          const s=new Date(S.statsCustomStart||addDays(todayStr(),-6));
+          const e=new Date(S.statsCustomEnd||todayStr());
+          const diff=Math.round((e-s)/(1000*60*60*24))+1;
+          return diff>0?diff+'일간':'날짜 확인';
+        })()}
+      </span>
+    </div>`:''}
 
     <!-- 매출 + 환자수 차트 -->
     <div class="section-card" style="margin-bottom:16px">
@@ -4372,57 +4557,70 @@ function renderLogin(){
     </div>
   </div>`;
 }
-window.doLogin=()=>{
-  // Rate Limiting - 5회 실패 시 30초 잠금
-  const now=Date.now();
-  const failKey='doridori_login_fail';
-  const lockKey='doridori_login_lock';
-  try{
-    const lockUntil=+localStorage.getItem(lockKey)||0;
-    if(lockUntil>now){
-      const sec=Math.ceil((lockUntil-now)/1000);
-      const errEl=document.getElementById('login_err');
-      if(errEl)errEl.textContent='⛔ 너무 많이 시도했습니다. '+sec+'초 후 재시도해주세요.';
-      return;
-    }
-  }catch(e){}
-
+window.doLogin=async function(){
+  const errEl=document.getElementById('login_err');
+  const btnEl=document.getElementById('login_btn');
   const email=(document.getElementById('li_email')?.value||'').trim().toLowerCase();
   const pw=document.getElementById('li_pw')?.value||'';
-  const errEl=document.getElementById('login_err');
+
   if(!email||!pw){
     if(errEl)errEl.textContent='이메일과 비밀번호를 입력해주세요.';
     return;
   }
-  const user=USERS.find(u=>u.email.toLowerCase()===email&&u.pw===pw);
-  if(user){
-    // 로그인 성공 - 실패 카운트 초기화
-    try{localStorage.removeItem(failKey);localStorage.removeItem(lockKey);}catch(e){}
-    S.isLoggedIn=true;
-    S.user={name:user.name,email:user.email,role:user.role};
-    try{
-      localStorage.setItem('doridori__loggedIn','1');
-      localStorage.setItem('doridori__user',JSON.stringify(S.user));
-    }catch{}
-    render();
-  } else {
-    // 실패 카운트 증가
-    try{
-      const fails=(+localStorage.getItem('doridori_login_fail')||0)+1;
-      localStorage.setItem('doridori_login_fail',fails);
-      if(fails>=5){
-        const lockUntil=Date.now()+30000; // 30초 잠금
-        localStorage.setItem('doridori_login_lock',lockUntil);
-        if(errEl)errEl.textContent='⛔ 5회 실패! 30초 동안 로그인이 잠깁니다.';
-        return;
-      }
-      if(errEl)errEl.textContent='이메일 또는 비밀번호가 올바르지 않습니다. ('+fails+'/5회)';
-    }catch(e){
-      if(errEl)errEl.textContent='이메일 또는 비밀번호가 올바르지 않습니다.';
-    }
-    const pwEl=document.getElementById('li_pw');
-    if(pwEl){pwEl.style.borderColor='#dc2626';setTimeout(()=>{pwEl.style.borderColor='';},2000);}
+  if(!_sb){
+    if(errEl)errEl.textContent='⚠️ Supabase 연결 안됨. 설정을 확인하세요.';
+    return;
   }
+
+  // 버튼 로딩
+  if(btnEl){btnEl.textContent='로그인 중...';btnEl.disabled=true;}
+  if(errEl)errEl.textContent='';
+
+  try{
+    const {data, error}=await _sb.auth.signInWithPassword({email, password:pw});
+    if(error){
+      if(btnEl){btnEl.textContent='로그인';btnEl.disabled=false;}
+      const msg=error.message||'';
+      if(msg.includes('Invalid login')||msg.includes('credentials')){
+        if(errEl)errEl.textContent='이메일 또는 비밀번호가 올바르지 않습니다.';
+      }else if(msg.includes('Email not confirmed')){
+        if(errEl)errEl.textContent='이메일 인증이 필요합니다. 이메일을 확인해주세요.';
+      }else{
+        if(errEl)errEl.textContent='로그인 실패: '+msg;
+      }
+      const pwEl=document.getElementById('li_pw');
+      if(pwEl){pwEl.style.borderColor='#dc2626';setTimeout(function(){pwEl.style.borderColor='';},2000);}
+      return;
+    }
+
+    // 로그인 성공
+    const u=data.user;
+    S.isLoggedIn=true;
+    S.user={
+      name:u.user_metadata?.name||u.email.split('@')[0],
+      email:u.email,
+      role:u.user_metadata?.role||'staff'
+    };
+    try{localStorage.setItem('doridori__loggedIn','1');localStorage.setItem('doridori__user',JSON.stringify(S.user));}catch(e){}
+    await sbLoadAll();
+    render();
+  }catch(e){
+    if(btnEl){btnEl.textContent='로그인';btnEl.disabled=false;}
+    if(errEl)errEl.textContent='오류: '+e.message;
+  }
+};
+
+window.doLogout=async function(){
+  try{
+    if(_sb) await _sb.auth.signOut();
+  }catch(e){console.warn('signOut 오류:',e);}
+  S.isLoggedIn=false;
+  S.user={name:'',email:'',role:''};
+  try{
+    localStorage.removeItem('doridori__loggedIn');
+    localStorage.removeItem('doridori__user');
+  }catch(e){}
+  render();
 };
 
 // ── 메인 렌더 ──────────────────────────────────────────
@@ -4537,7 +4735,7 @@ window.btnCalNext=function(){S.calMonth=nMonth(S.calMonth);var e=document.getEle
 window.btnSchedPrev=function(){S.scheduleMonth=pMonth(S.scheduleMonth);var e=document.getElementById('disp-sched-month');if(e)e.textContent=S.scheduleMonth.replace('-','년 ')+'월';setTimeout(render,0);}
 window.btnSchedNext=function(){S.scheduleMonth=nMonth(S.scheduleMonth);var e=document.getElementById('disp-sched-month');if(e)e.textContent=S.scheduleMonth.replace('-','년 ')+'월';setTimeout(render,0);}
 
-function init(){
+async function init(){
   try{ loadAll(); }catch(e){ console.warn('loadAll 오류:', e); }
   try{ loadXLSX(); }catch(e){}
 
@@ -4550,13 +4748,29 @@ function init(){
           sbLoadAll().then(function(loaded){
             showLoading(false);
             if(loaded){
-              // patients는 localStorage에 저장 안 함 (5MB 초과 방지)
-              // 나머지만 localStorage에 캐시
               ['ledger','employees','schedule','messageLogs','happycalls'].forEach(function(k){
                 try{localStorage.setItem('doridori_'+k,JSON.stringify(S[k]));}catch(e){}
               });
             }
-            try{ render(); }catch(e){ console.error('render 오류:', e); }
+            // Supabase Auth 세션 복원
+            return _sb.auth.getSession().then(function(res){
+              var session=res&&res.data&&res.data.session;
+              if(session&&session.user){
+                var u=session.user;
+                S.isLoggedIn=true;
+                S.user={
+                  name:(u.user_metadata&&u.user_metadata.name)||u.email.split('@')[0],
+                  email:u.email,
+                  role:(u.user_metadata&&u.user_metadata.role)||'staff'
+                };
+                try{localStorage.setItem('doridori__loggedIn','1');localStorage.setItem('doridori__user',JSON.stringify(S.user));}catch(e){}
+              }else{
+                S.isLoggedIn=false;
+                try{localStorage.removeItem('doridori__loggedIn');}catch(e){}
+              }
+            }).catch(function(){}).then(function(){
+              try{ render(); }catch(e){ console.error('render 오류:', e); }
+            });
           }).catch(function(e){
             showLoading(false);
             console.warn('Supabase 로드 실패 (로컬 데이터로 실행):', e.message||e);
