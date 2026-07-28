@@ -4550,7 +4550,7 @@ function renderLogin(){
         <label class="lbl">비밀번호</label>
         <input id="li_pw" class="form-inp" type="password" placeholder="비밀번호를 입력하세요" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()">
       </div>
-      <button class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;margin-top:8px;font-size:15px;font-weight:700" onclick="doLogin()">
+      <button id="login_btn" class="btn btn-primary" style="width:100%;justify-content:center;padding:12px;margin-top:8px;font-size:15px;font-weight:700" onclick="doLogin()">
         로그인
       </button>
       <div id="login_err" style="text-align:center;font-size:12px;color:#dc2626;margin-top:10px;min-height:18px"></div>
@@ -4567,9 +4567,15 @@ window.doLogin=async function(){
     if(errEl)errEl.textContent='이메일과 비밀번호를 입력해주세요.';
     return;
   }
+  // Supabase 미연결 시 자동 연결 시도
   if(!_sb){
-    if(errEl)errEl.textContent='⚠️ Supabase 연결 안됨. 설정을 확인하세요.';
-    return;
+    if(S.supabaseUrl&&S.supabaseKey){
+      initSupabaseClient();
+    }
+    if(!_sb){
+      if(errEl)errEl.textContent='⚠️ Supabase 연결 실패. 잠시 후 다시 시도해주세요.';
+      return;
+    }
   }
 
   // 버튼 로딩
@@ -4581,12 +4587,15 @@ window.doLogin=async function(){
     if(error){
       if(btnEl){btnEl.textContent='로그인';btnEl.disabled=false;}
       const msg=error.message||'';
-      if(msg.includes('Invalid login')||msg.includes('credentials')){
-        if(errEl)errEl.textContent='이메일 또는 비밀번호가 올바르지 않습니다.';
+      console.error('[로그인 오류]', error);
+      if(msg.includes('Invalid login')||msg.includes('credentials')||msg.includes('invalid')){
+        if(errEl)errEl.textContent='❌ 이메일 또는 비밀번호가 올바르지 않습니다.';
       }else if(msg.includes('Email not confirmed')){
-        if(errEl)errEl.textContent='이메일 인증이 필요합니다. 이메일을 확인해주세요.';
+        if(errEl)errEl.textContent='❌ 이메일 인증이 필요합니다.';
+      }else if(msg.includes('rate limit')||msg.includes('too many')){
+        if(errEl)errEl.textContent='⏳ 너무 많이 시도했습니다. 잠시 후 다시 시도해주세요.';
       }else{
-        if(errEl)errEl.textContent='로그인 실패: '+msg;
+        if(errEl)errEl.textContent='❌ 로그인 실패: '+msg;
       }
       const pwEl=document.getElementById('li_pw');
       if(pwEl){pwEl.style.borderColor='#dc2626';setTimeout(function(){pwEl.style.borderColor='';},2000);}
