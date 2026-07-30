@@ -2141,39 +2141,44 @@ function renderDashboard(){
 
     <!-- ── 한줄 요약 보고서 ── -->
     ${(()=>{
-      const ystD=addDays(td,-1);
+      // 항상 실제 오늘 기준 전날 사용 (td가 다른 날짜여도 어제 데이터 표시)
+      const ystD=addDays(realToday,-1);
       const ystRows=getLedger(ystD).filter(function(r){return !r._divider&&(r.patientName||r.chartNumber);});
-      if(!ystRows.length) return '';
+      // 데이터 없으면 2일 전까지 확인
+      const yst2D=addDays(realToday,-2);
+      const useRows=ystRows.length>0?ystRows:getLedger(yst2D).filter(function(r){return !r._divider&&(r.patientName||r.chartNumber);});
+      const useDate=ystRows.length>0?ystD:yst2D;
+      if(!useRows.length) return '';
 
       // 환자 구분별
-      const total=ystRows.length;
-      const shinPts=ystRows.filter(function(r){return r.category==='신환';});
-      const taChojin=ystRows.filter(function(r){return r.category==='ta초진';});
-      const taPts=ystRows.filter(function(r){return r.category==='ta'||r.category==='ta일반';});
-      const geonboPts=ystRows.filter(function(r){return r.category==='건보추나';});
+      const total=useRows.length;
+      const shinPts=useRows.filter(function(r){return r.category==='신환';});
+      const taChojin=useRows.filter(function(r){return r.category==='ta초진';});
+      const taPts=useRows.filter(function(r){return r.category==='ta'||r.category==='ta일반';});
+      const geonboPts=useRows.filter(function(r){return r.category==='건보추나';});
       // 당일 예약 - 어제 일계표 행 중 다음 예약날짜가 있는 환자 (재방문 예약 완료)
-      const apptPts=ystRows.filter(function(r){return r.appointmentDate&&r.appointmentDate>ystD;});
+      const apptPts=useRows.filter(function(r){return r.appointmentDate&&r.appointmentDate>useDate;});
 
       // 한약 차수 구분 (note 필드 있는 환자)
-      const hanyakPts=ystRows.filter(function(r){return r.note&&r.note.trim();});
+      const hanyakPts=useRows.filter(function(r){return r.note&&r.note.trim();});
       // noteDays 기준: ~30일=1차, 31~90=2차, 91~=3차
       const h1=hanyakPts.filter(function(r){return (r.noteDays||0)<=30;});
       const h2=hanyakPts.filter(function(r){return (r.noteDays||0)>30&&(r.noteDays||0)<=90;});
       const h3=hanyakPts.filter(function(r){return (r.noteDays||0)>90;});
       // 다이어트
-      const dietPts=ystRows.filter(function(r){return r.note&&r.note.includes('다이어트');});
+      const dietPts=useRows.filter(function(r){return r.note&&r.note.includes('다이어트');});
 
       function names(arr){return arr.map(function(r){return r.patientName||'(이름없음)';}).join(', ');}
 
       const lines=[];
-      lines.push(fmtDot(ystD)+' 일계표 기준 한줄 보고');
+      lines.push(fmtDot(useDate)+' 일계표 기준 한줄 보고');
       lines.push('');
       lines.push('▶ 총 환자 '+total+'명');
       lines.push('▶ 신환 '+shinPts.length+'명'+(shinPts.length?' ('+names(shinPts)+')':''));
       lines.push('▶ TA초진 '+taChojin.length+'명'+(taChojin.length?' ('+names(taChojin)+')':''));
       lines.push('▶ TA '+taPts.length+'명'+(taPts.length?' ('+names(taPts)+')':''));
-      const jaejinPts=ystRows.filter(function(r){return r.category==='재진';});
-      const taChanaPts=ystRows.filter(function(r){return r.category==='ta추나';});
+      const jaejinPts=useRows.filter(function(r){return r.category==='재진';});
+      const taChanaPts=useRows.filter(function(r){return r.category==='ta추나';});
 
       lines.push('▶ 재진 '+jaejinPts.length+'명'+(jaejinPts.length?' ('+names(jaejinPts)+')':''));
       lines.push('▶ 건보추나 '+geonboPts.length+'명'+(geonboPts.length?' ('+names(geonboPts)+')':''));
@@ -2185,7 +2190,7 @@ function renderDashboard(){
       lines.push('▶ 다이어트 '+dietPts.length+'명'+(dietPts.length?' ('+names(dietPts)+')':''));
 
       // 메모 있는 환자 목록
-      const memoPts=ystRows.filter(function(r){return r.memo&&r.memo.trim();});
+      const memoPts=useRows.filter(function(r){return r.memo&&r.memo.trim();});
       if(memoPts.length>0){
         lines.push('');
         lines.push('📋 메모');
@@ -2198,7 +2203,7 @@ function renderDashboard(){
 
       return '<div class="section-card" style="margin-top:16px;border:2px solid #2563eb;background:#f0f7ff">'
         +'<div class="section-hdr" style="background:#2563eb;margin:-1px -1px 0;border-radius:9px 9px 0 0;padding:10px 16px">'
-        +'<div class="section-title" style="color:#fff;margin:0">📝 한줄 요약 보고서 <span style="font-size:11px;font-weight:400;opacity:.8">('+fmtDot(ystD)+' 일계표 기준)</span></div>'
+        +'<div class="section-title" style="color:#fff;margin:0">📝 한줄 요약 보고서 <span style="font-size:11px;font-weight:400;opacity:.8">('+fmtDot(useDate)+' 일계표 기준)</span></div>'
         +'<button type="button" onclick="copyDailySummary()" style="background:#fff;color:#2563eb;border:none;border-radius:6px;padding:4px 12px;font-size:12px;font-weight:600;cursor:pointer">📋 복사</button>'
         +'</div>'
         +'<div style="padding:16px">'
