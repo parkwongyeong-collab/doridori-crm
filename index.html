@@ -371,7 +371,7 @@ var S={
   patients:[],ledger:{},employees:[],
   schedule:{},messageLogs:[],inpatients:{},happycalls:{},
   ledgerDate:todayStr(),calMonth:todayStr().slice(0,7),scheduleMonth:todayStr().slice(0,7),happycallDate:todayStr(),
-  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],notices:{},statsTab:'daily',statsCustomStart:'',statsCustomEnd:'',goalRevenue:0,
+  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],notices:{},statsTab:'daily',statsCustomStart:'',statsCustomEnd:'',goalRevenue:0,geminiKey:'',aiMessages:[],
   user:{name:'관리자',email:'pwk2956@naver.com',role:'admin'},
   solapiKey:'',solapiSecret:'',solapiSender:'',
   supabaseUrl:'https://mzdxunkqewctmognveqo.supabase.co',supabaseKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA',sbConnected:false,
@@ -820,7 +820,7 @@ function showLoading(show){
 }
 
 const SB_KEYS=['patients','ledger','employees','schedule','messageLogs','inpatients','happycalls'];
-const SETTINGS_KEYS=['solapiKey','solapiSecret','solapiSender','user'];
+const SETTINGS_KEYS=['solapiKey','solapiSecret','solapiSender','geminiKey','user'];
 
 function save(key){
   // 1. localStorage (오프라인 백업)
@@ -1474,14 +1474,14 @@ const BOTTOM_TABS=[
   {id:'patients',  icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>', label:'환자'},
   {id:'more',      icon:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>', label:'더보기'},
 ];
-const PAGE_LABELS={dashboard:'보고서',calendar:'달력',patients:'환자 목록',newpatient:'새 환자 등록',editpatient:'환자 수정',ledger:'일계표',happycall:'해피콜',schedule:'직원 근무표',messages:'알림톡',settings:'설정',stats:'통계'};
+const PAGE_LABELS={dashboard:'보고서',calendar:'달력',patients:'환자 목록',newpatient:'새 환자 등록',editpatient:'환자 수정',ledger:'일계표',happycall:'해피콜',schedule:'직원 근무표',messages:'알림톡',settings:'설정',stats:'통계',ai:'🤖 AI 어시스턴트'};
 const DRAWER_ITEMS=[
   {id:'calendar',  icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', label:'달력 예약뷰'},
   {id:'newpatient',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>', label:'새 환자 등록'},
   {id:'schedule',  icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="8" cy="14" r="1" fill="currentColor"/><circle cx="12" cy="14" r="1" fill="currentColor"/><circle cx="16" cy="14" r="1" fill="currentColor"/>', label:'직원 근무표'},
   {id:'messages',  icon:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>', label:'알림톡 전송'},
   {id:'stats',     icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>', label:'통계'},
-  {id:'settings',  icon:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>', label:'설정'},
+  {id:'settings', adminOnly:true,  icon:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>', label:'설정'},
 ];
 
 function svgIcon(path,size=20){return`<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;}
@@ -1512,7 +1512,7 @@ function renderDrawer(){
       <button onclick="closeDrawer()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#9ca3af">×</button>
     </div>
     <div style="padding:10px 0">
-      ${DRAWER_ITEMS.map(it=>`<button onclick="nav('${it.id}');closeDrawer()" style="width:100%;display:flex;align-items:center;gap:12px;padding:13px 20px;border:none;background:${S.page===it.id?'#eff6ff':'transparent'};color:${S.page===it.id?'#2563eb':'#374151'};font-size:14px;font-family:inherit;cursor:pointer;text-align:left;font-weight:${S.page===it.id?'600':'400'}">
+      ${DRAWER_ITEMS.filter(it=>!it.adminOnly||(S.user&&['admin','doctor'].includes(S.user.role))).map(it=>`<button onclick="nav('${it.id}');closeDrawer()" style="width:100%;display:flex;align-items:center;gap:12px;padding:13px 20px;border:none;background:${S.page===it.id?'#eff6ff':'transparent'};color:${S.page===it.id?'#2563eb':'#374151'};font-size:14px;font-family:inherit;cursor:pointer;text-align:left;font-weight:${S.page===it.id?'600':'400'}">
         ${svgIcon(it.icon,18)}
         ${it.label}
       </button>`).join('')}
@@ -1554,7 +1554,8 @@ function renderSidebar(){
     {id:'schedule',icon:I.sched,label:'직원 근무표'},
     {id:'messages',icon:I.msg,label:'알림톡 전송'},
     {id:'stats',icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>',label:'통계'},
-    {id:'settings',icon:I.set,label:'설정'},
+    {id:'ai',icon:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',label:'AI'},
+    ...(S.user&&['admin','doctor'].includes(S.user.role)?[{id:'settings',icon:I.set,label:'설정'}]:[]),
   ];
   const nm=S.user.name||'관리자';
   return`<div class="sidebar">
@@ -4398,6 +4399,10 @@ function renderStats(){
 }
 
 function renderSettings(){
+  // 관리자/원장님만 접근 가능
+  if(!S.user||!['admin','doctor'].includes(S.user.role)){
+    return '<div class="content"><div style="text-align:center;padding:60px 20px"><div style="font-size:48px;margin-bottom:16px">🔒</div><div style="font-size:18px;font-weight:600;color:#374151;margin-bottom:8px">접근 권한이 없습니다</div><div style="font-size:14px;color:#6b7280">설정 페이지는 관리자와 원장님만 사용할 수 있습니다</div></div></div>';
+  }
   setTimeout(function(){if(typeof loadStaffList==='function')loadStaffList();},300);
   return`<div class="content" style="max-width:600px">
     <div class="page-title">⚙️ 설정</div>
@@ -4490,6 +4495,39 @@ function renderSettings(){
       <div class="setting-title">🗑️ 데이터 초기화</div>
       <div style="font-size:12px;color:#6b7280;margin-bottom:10px">초기화 전 반드시 백업을 먼저 받아두세요!</div>
       <button class="btn btn-danger" onclick="if(confirm('모든 데이터를 초기화하시겠습니까?\n되돌릴 수 없습니다! 백업을 먼저 받으세요.'))clearAllData()">전체 초기화</button>
+    </div>
+
+    <!-- 제미나이 AI 설정 -->
+    <div class="setting-section" style="border:2px solid ${S.geminiKey?'#a7f3d0':'#e5e7eb'};background:${S.geminiKey?'#f0fdf4':'#fff'}">
+      <div class="setting-title">🤖 Google Gemini AI 연동 ${S.geminiKey?'<span class="badge badge-green">연동됨</span>':'<span class="badge badge-gray">미연동</span>'}</div>
+      <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;margin-bottom:14px;font-size:12px;color:#1e40af">
+        <b>📌 API 키 발급 방법</b><br>
+        1. <a href="https://aistudio.google.com" target="_blank" style="color:#2563eb">aistudio.google.com</a> 접속<br>
+        2. Google 계정 로그인<br>
+        3. "Get API Key" 클릭 → 복사<br>
+        4. 아래에 붙여넣기 → 저장<br>
+        <span style="color:#059669;font-weight:600">✅ 무료 (하루 1,500회)</span>
+      </div>
+      <div class="form-group">
+        <label class="lbl">Gemini API Key</label>
+        <input class="form-inp" type="password" placeholder="AIza..." value="${S.geminiKey||''}" oninput="S.geminiKey=this.value.trim()">
+      </div>
+      <button type="button" class="btn btn-primary" onclick="
+        save('geminiKey');
+        if(_sb&&S.sbConnected){sbSave('geminiKey').then(function(){showToast('✅ Gemini API 키 저장됨 (DB 동기화 완료)');render();}).catch(function(){showToast('✅ 로컬 저장됨');render();});}
+        else{showToast('✅ Gemini API 키 저장됨');render();}
+      " style="background:#059669;border-color:#059669">💾 저장</button>
+      ${S.geminiKey?`
+      <div style="margin-top:14px;padding:12px;background:#eff6ff;border-radius:8px;font-size:12px">
+        <b style="color:#1d4ed8">✅ 연동 완료 — 사용 가능한 AI 기능</b><br>
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
+          <span>🚗 <b>TA 내원 스케줄 계산</b> — 사고일 입력 → 내원 요일 자동 계산</span>
+          <span>📋 <b>환자 내원 분석</b> — 이름/차트번호 → 내원 패턴 AI 분석</span>
+          <span>📅 <b>연차/월차 현황</b> — 직원별 휴가 잔여일 자동 계산</span>
+          <span>💬 <b>AI 자유 질문</b> — 뭐든 물어보면 데이터 기반 답변</span>
+        </div>
+        <div style="margin-top:8px"><button type="button" class="btn btn-primary" onclick="nav('ai')" style="font-size:12px">🤖 AI 채팅 열기</button></div>
+      </div>`:''}
     </div>
 
     <!-- 계정 관리 (admin만 표시) -->
@@ -4694,6 +4732,206 @@ window.clearAllData=()=>{
   showToast('초기화 완료');render();
 };
 
+// ── AI 어시스턴트 ────────────────────────────────────────
+function renderAI(){
+  if(!S.geminiKey){
+    return '<div class="content"><div style="text-align:center;padding:60px 20px">'
+      +'<div style="font-size:48px;margin-bottom:16px">🤖</div>'
+      +'<div style="font-size:18px;font-weight:600;color:#374151;margin-bottom:8px">Gemini AI 미연동</div>'
+      +'<div style="font-size:14px;color:#6b7280;margin-bottom:20px">설정 페이지에서 Gemini API 키를 입력하세요</div>'
+      +'<button type="button" class="btn btn-primary" onclick="nav(\'settings\')">⚙️ 설정으로 이동</button>'
+      +'</div></div>';
+  }
+
+  var msgHtml='';
+  if(!S.aiMessages||!S.aiMessages.length){
+    msgHtml='<div style="text-align:center;padding:40px 20px;color:#9ca3af">'
+      +'<div style="font-size:32px;margin-bottom:12px">🤖</div>'
+      +'<div style="font-weight:600;margin-bottom:16px">도리도리 AI 어시스턴트</div>'
+      +'<div style="font-size:13px;line-height:1.8;text-align:left;background:#f8fafc;border-radius:10px;padding:16px">'
+      +'<b>💬 이런 질문을 해보세요:</b><br><br>'
+      +'🚗 <b>TA 스케줄</b><br>'
+      +'&nbsp;&nbsp;"2026년 1월 1일 사고 환자 내원 스케줄 알려줘"<br><br>'
+      +'📋 <b>환자 분석</b><br>'
+      +'&nbsp;&nbsp;"홍길동 환자 언제언제 내원했어?"<br><br>'
+      +'📅 <b>근무 현황</b><br>'
+      +'&nbsp;&nbsp;"이실장 올해 연차 몇 개 남았어?"<br><br>'
+      +'💬 <b>자유 질문</b><br>'
+      +'&nbsp;&nbsp;"이번달 신환이 몇 명이야?"'
+      +'</div></div>';
+  }else{
+    msgHtml=S.aiMessages.map(function(m){
+      var isUser=m.role==='user';
+      return '<div style="display:flex;justify-content:'+(isUser?'flex-end':'flex-start')+';margin-bottom:12px">'
+        +'<div style="max-width:80%;padding:12px 16px;border-radius:'+(isUser?'18px 18px 4px 18px':'18px 18px 18px 4px')+';'
+        +'background:'+(isUser?'#2563eb':'#f3f4f6')+';color:'+(isUser?'#fff':'#1f2937')+';font-size:13px;line-height:1.6;white-space:pre-wrap">'
+        +m.content+'</div></div>';
+    }).join('');
+  }
+
+  return '<div class="content" style="display:flex;flex-direction:column;height:calc(100vh - 60px)">'
+    +'<div class="page-title" style="margin-bottom:0;padding-bottom:12px;border-bottom:1px solid #e5e7eb">'
+    +'🤖 AI 어시스턴트'
+    +(S.aiMessages&&S.aiMessages.length?'<button type="button" class="btn btn-sm" onclick="S.aiMessages=[];render()" style="margin-left:12px;font-size:11px;color:#ef4444;border-color:#ef4444">대화 초기화</button>':'')
+    +'</div>'
+    +'<div id="ai-chat-box" style="flex:1;overflow-y:auto;padding:16px;background:#fff;margin:12px 0;border-radius:12px;border:1px solid #e5e7eb">'
+    +msgHtml
+    +'</div>'
+    +'<div style="margin-bottom:6px"><button type="button" class="btn btn-sm" onclick="checkGeminiModels()" style="font-size:11px;color:#7c3aed;border-color:#7c3aed">&#x1F4CB; 지원 모델 확인</button></div>'
+    +'<div style="display:flex;gap:8px;padding-bottom:8px">'
+    +'<textarea id="ai-input" class="form-inp" rows="2" style="flex:1;resize:none;font-size:13px" placeholder="질문을 입력하세요... (Enter: 전송, Shift+Enter: 줄바꿈)" '
+    +'onkeydown="if(event.key===\'Enter\'&&!event.shiftKey){event.preventDefault();sendAIMsg();}"></textarea>'
+    +'<button type="button" class="btn btn-primary" onclick="sendAIMsg()" style="padding:0 20px;align-self:stretch">전송</button>'
+    +'</div></div>';
+}
+
+window.checkGeminiModels=async function(){
+  var key=S.geminiKey||prompt('Gemini API 키를 입력하세요:');
+  if(!key)return;
+  try{
+    showToast('모델 목록 조회 중...');
+    var resp=await fetch('https://generativelanguage.googleapis.com/v1/models?key='+key);
+    var data=await resp.json();
+    if(data.error){alert('오류: '+data.error.message);return;}
+    var models=(data.models||[]).filter(function(m){
+      return m.supportedGenerationMethods&&m.supportedGenerationMethods.includes('generateContent');
+    });
+    var names=models.map(function(m){return m.name.replace('models/','');}).join('\n');
+    alert('사용 가능한 모델 목록:\n\n'+names);
+  }catch(e){alert('오류: '+e.message);}
+};
+
+window.sendAIMsg=async function(){
+  var inp=document.getElementById('ai-input');
+  if(!inp) return;
+  var msg=(inp.value||'').trim();
+  if(!msg) return;
+  if(!S.geminiKey) return showToast('Gemini API 키를 설정 페이지에서 입력하세요','err');
+  inp.value='';
+  if(!S.aiMessages)S.aiMessages=[];
+  S.aiMessages.push({role:'user',content:msg});
+  render();
+
+  // 자동 스크롤
+  setTimeout(function(){
+    var box=document.getElementById('ai-chat-box');
+    if(box)box.scrollTop=box.scrollHeight;
+  },100);
+
+  // 컨텍스트 데이터 준비
+  var today=todayStr();
+  var employees=S.employees||[];
+
+  // 근무표 데이터 요약
+  var scheduleSum='';
+  var thisYear=today.slice(0,4);
+  employees.forEach(function(emp){
+    var counts={근무:0,오전:0,오후:0,휴무:0,병가:0,연차:0,월차:0,기타:0};
+    Object.entries(S.schedule||{}).forEach(function(e){
+      var d=e[0],dayData=e[1];
+      if(d.startsWith(thisYear)&&dayData[emp]){
+        var sh=dayData[emp];
+        if(counts[sh]!==undefined)counts[sh]++;
+      }
+    });
+    scheduleSum+=emp+': 근무'+counts['근무']+'일, 연차'+counts['연차']+'일, 월차'+counts['월차']+'일, 병가'+counts['병가']+'일 / ';
+  });
+
+  // 최근 일계표 요약
+  var ledgerSum='';
+  for(var i=0;i<7;i++){
+    var d=addDays(today,-i);
+    var rows=getLedger(d).filter(function(r){return r.patientName;});
+    if(rows.length){
+      ledgerSum+=d+'('+rows.length+'명): '+rows.map(function(r){return r.patientName+'('+r.category+')';}).join(', ')+' / ';
+    }
+  }
+
+  // 전체 일계표 환자별 내원일 (이름 검색용)
+  var allLedgerByPt={};
+  Object.entries(S.ledger||{}).forEach(function(e){
+    var d=e[0],rows=e[1]||[];
+    rows.forEach(function(r){
+      if(!r.patientName)return;
+      if(!allLedgerByPt[r.patientName])allLedgerByPt[r.patientName]=[];
+      allLedgerByPt[r.patientName].push({date:d,category:r.category,memo:r.memo||''});
+    });
+  });
+  var ledgerByPtStr=JSON.stringify(allLedgerByPt).slice(0,3000);
+
+  var systemPrompt='당신은 도리도리한의원 AI 어시스턴트입니다.\n'
+    +'오늘 날짜: '+today+'\n'
+    +'직원 목록: '+employees.join(', ')+'\n\n'
+    +'[올해 근무 현황]\n'+scheduleSum+'\n\n'
+    +'[최근 7일 일계표]\n'+ledgerSum+'\n\n'
+    +'[환자별 전체 내원 기록]\n'+ledgerByPtStr+'\n\n'
+    +'[TA 내원 기준 (한의원 표준)]\n'
+    +'- 사고 후 3주(21일): 매일 내원 권장\n'
+    +'- 3주~3개월(22일~90일): 주 3회 (월수금 또는 화목토)\n'
+    +'- 3개월~9개월(91일~270일): 주 2회 (월목 또는 화금)\n'
+    +'- 9개월 이후: 주 1회\n'
+    +'- 주의: 월~일이 한 주 기준, 공휴일 제외하고 계산\n\n'
+    +'답변은 한국어로 명확하고 친절하게 해주세요. 날짜 계산이 필요하면 정확히 계산해주세요.';
+
+  // 대화 히스토리 구성
+  var messages=[];
+  var history=S.aiMessages.slice(0,-1);
+  history.forEach(function(m){
+    messages.push({role:m.role==='user'?'user':'model',parts:[{text:m.content}]});
+  });
+  messages.push({role:'user',parts:[{text:systemPrompt+'\n\n사용자 질문: '+msg}]});
+
+  // 모델 순서대로 시도
+  // 2026년 기준 Google AI Studio 키는 v1beta 사용
+  // 성공 확인된 모델 순서
+  var MODELS=[
+    {name:'gemini-2.5-flash-lite',ver:'v1beta'},
+    {name:'gemini-2.0-flash',ver:'v1beta'}
+  ];
+  var success=false;
+  for(var mi=0;mi<MODELS.length;mi++){
+    var mName=MODELS[mi].name;
+    var mVer=MODELS[mi].ver;
+    try{
+      var resp=await fetch('https://generativelanguage.googleapis.com/'+mVer+'/models/'+mName+':generateContent?key='+S.geminiKey,{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({contents:messages,generationConfig:{temperature:0.3,maxOutputTokens:2048}})
+      });
+      var data=await resp.json();
+      console.log('[Gemini] 모델:'+mName+' 상태:'+resp.status, data);
+      if(data.error){
+        if(mi===MODELS.length-1){  // 마지막 모델 실패
+          // 마지막 모델도 실패
+          var errMsg=data.error.message||'알 수 없는 오류';
+          var hint='';
+          if(errMsg.includes('quota')||errMsg.includes('RESOURCE_EXHAUSTED')){
+            hint='\n\n💡 해결방법: aistudio.google.com → Get API Key → Create API key in new project';
+          }else if(errMsg.includes('API_KEY_INVALID')||errMsg.includes('invalid')){
+            hint='\n\n💡 API 키가 올바르지 않습니다. 설정 페이지에서 키를 다시 확인해주세요.';
+          }
+          S.aiMessages.push({role:'assistant',content:'❌ 오류 ('+mName+'): '+errMsg+hint});
+        }
+        continue; // 다음 모델 시도
+      }
+      var reply=(data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text)||'응답 없음';
+      S.aiMessages.push({role:'assistant',content:reply});
+      success=true;
+      break;
+    }catch(e){
+      console.error('[Gemini] 모델:'+mName+' 오류:', e);
+      if(mi===MODELS.length-1){
+        S.aiMessages.push({role:'assistant',content:'❌ 연결 오류: '+e.message+'\n\nF12 → Console 탭에서 자세한 오류를 확인하세요.'});
+      }
+    }
+  }
+  render();
+  setTimeout(function(){
+    var box=document.getElementById('ai-chat-box');
+    if(box)box.scrollTop=box.scrollHeight;
+  },100);
+};
+
 // ── 로그인 ──────────────────────────────────────────────
 function renderLogin(){
   return`<div class="login-wrap">
@@ -4816,6 +5054,7 @@ function render(){
     else if(S.page==='messages')content=renderMessages();
     else if(S.page==='stats')content=renderStats();
     else if(S.page==='settings')content=renderSettings();
+    else if(S.page==='ai')content=renderAI();
   }catch(e){
     console.error('페이지 렌더 오류('+S.page+'):', e);
     content='<div style="padding:40px;text-align:center;color:#dc2626">⚠️ 페이지 로드 오류: '+e.message+'</div>';
