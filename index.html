@@ -4883,11 +4883,12 @@ window.sendAIMsg=async function(){
 
   // 모델 순서대로 시도
   // 2026년 기준 Google AI Studio 키는 v1beta 사용
-  // CRM-1 프로젝트 실제 작동 모델
+  // CRM-1 프로젝트 실제 작동 모델 (지원모델확인 목록 기준)
   var MODELS=[
-    {name:'gemini-2.5-flash-lite',ver:'v1beta'},
     {name:'gemini-3.5-flash',ver:'v1beta'},
-    {name:'gemini-2.5-flash',ver:'v1beta'}
+    {name:'gemini-3.5-flash-lite',ver:'v1beta'},
+    {name:'gemini-3.1-flash-lite',ver:'v1beta'},
+    {name:'gemini-2.5-flash-lite-preview-06-17',ver:'v1beta'}
   ];
   var success=false;
   for(var mi=0;mi<MODELS.length;mi++){
