@@ -4922,16 +4922,16 @@ window.sendAIMsg=async function(){
     messages.push({role:m.role==='user'?'user':'model',parts:[{text:m.content}]});
   });
   // 현재 질문
-  messages.push({role:'user',parts:[{text:msg}]});
+  messages.push({role:'user',parts:[{text:'[반드시 한국어로만 답변. 영어 절대 금지. 추론과정 출력 금지]\n\n'+msg}]});
 
   // 모델 순서대로 시도
   // 2026년 기준 Google AI Studio 키는 v1beta 사용
-  // CRM-1 프로젝트 실제 작동 모델 (지원모델확인 목록 기준)
+  // 한국어 응답 최적화 모델
   var MODELS=[
-    {name:'gemini-3.5-flash',ver:'v1beta'},
-    {name:'gemini-3.5-flash-lite',ver:'v1beta'},
+    {name:'gemini-2.5-flash-lite-preview-06-17',ver:'v1beta'},
     {name:'gemini-3.1-flash-lite',ver:'v1beta'},
-    {name:'gemini-2.5-flash-lite-preview-06-17',ver:'v1beta'}
+    {name:'gemini-3.5-flash-lite',ver:'v1beta'},
+    {name:'gemini-3.5-flash',ver:'v1beta'}
   ];
   var success=false;
   for(var mi=0;mi<MODELS.length;mi++){
@@ -4960,6 +4960,13 @@ window.sendAIMsg=async function(){
         continue; // 다음 모델 시도
       }
       var reply=(data.candidates&&data.candidates[0]&&data.candidates[0].content&&data.candidates[0].content.parts&&data.candidates[0].content.parts[0]&&data.candidates[0].content.parts[0].text)||'응답 없음';
+      // 영어 비율 체크 - 영어가 많으면 한국어 재요청
+      var englishWords=(reply.match(/[a-zA-Z]{3,}/g)||[]).length;
+      var totalWords=(reply.match(/\S+/g)||[]).length;
+      if(englishWords>5&&englishWords/totalWords>0.3&&mi<MODELS.length-1){
+        console.warn('[Gemini] 영어 응답 감지, 다음 모델 시도');
+        continue;
+      }
       S.aiMessages.push({role:'assistant',content:reply});
       success=true;
       break;
