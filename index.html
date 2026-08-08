@@ -12,6 +12,16 @@
 <!-- 2. X-Content-Type-Options: MIME 스니핑 차단 -->
 <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
+<!-- PWA 설정 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#2563eb">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="도리도리CRM">
+<meta name="mobile-web-app-capable" content="yes">
+<!-- iOS 아이콘 -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%232563eb'/><text y='.9em' font-size='80' x='10'>🏥</text></svg>">
+
 <!-- 3. Referrer-Policy: 외부 이동 시 URL 정보 최소화 -->
 <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
 
@@ -4860,26 +4870,59 @@ window.sendAIMsg=async function(){
   var ledgerByPtStr=JSON.stringify(allLedgerByPt).slice(0,3000);
 
   var systemPrompt='당신은 도리도리한의원 AI 어시스턴트입니다.\n'
+    +'반드시 한국어로만 답변하세요. 영어 사용 절대 금지.\n'
+    +'내부 추론 과정, 마크다운(###,**,---) 절대 출력 금지.\n'
     +'오늘 날짜: '+today+'\n'
     +'직원 목록: '+employees.join(', ')+'\n\n'
     +'[올해 근무 현황]\n'+scheduleSum+'\n\n'
     +'[최근 7일 일계표]\n'+ledgerSum+'\n\n'
     +'[환자별 전체 내원 기록]\n'+ledgerByPtStr+'\n\n'
-    +'[TA 내원 기준 (한의원 표준)]\n'
-    +'- 사고 후 3주(21일): 매일 내원 권장\n'
-    +'- 3주~3개월(22일~90일): 주 3회 (월수금 또는 화목토)\n'
-    +'- 3개월~9개월(91일~270일): 주 2회 (월목 또는 화금)\n'
+    +'[TA 내원 기준]\n'
+    +'- 사고 후 3주(21일): 매일 내원\n'
+    +'- 3주~3개월: 주 3회 (월수금 또는 화목토)\n'
+    +'- 3개월~9개월: 주 2회 (월목 또는 화금)\n'
     +'- 9개월 이후: 주 1회\n'
-    +'- 주의: 월~일이 한 주 기준, 공휴일 제외하고 계산\n\n'
-    +'답변은 한국어로 명확하고 친절하게 해주세요. 날짜 계산이 필요하면 정확히 계산해주세요.';
+    +'- 한 주 기준: 월요일~일요일\n\n'
+    +'[환자 정리 질문 시 반드시 아래 형식으로만 답변]\n'
+    +'━━━━━━━━━━━━━━━━━━\n'
+    +'📋 N월 N일 (요일) 진료 현황\n'
+    +'━━━━━━━━━━━━━━━━━━\n'
+    +'👥 총 환자 N명\n'
+    +'(이름, 이름, 이름, ...)\n\n'
+    +'🚗 자보 TA추나: N명\n'
+    +'(이름, 이름)\n\n'
+    +'🟢 건보추나: N명\n'
+    +'(이름, 이름)\n\n'
+    +'👤 신환: N명\n'
+    +'(이름, 이름)\n\n'
+    +'🔵 재진: N명\n'
+    +'(이름, 이름)\n\n'
+    +'📅 다음예약 완료: N명 (예약률 N%)\n'
+    +'(이름, 이름)\n\n'
+    +'📝 특이사항\n'
+    +'- 이름: 메모 내용\n'
+    +'━━━━━━━━━━━━━━━━━━\n'
+    +'이 형식에서 해당 없는 항목은 생략하세요.\n'
+    +'예약률 = 다음예약 완료 인원 / 총 환자 × 100\n\n'
+    +'[답변 규칙]\n'
+    +'1. 한국어만 사용\n'
+    +'2. 마크다운 문법(###,**,---,*) 사용 금지\n'
+    +'3. 추론 과정 노출 금지\n'
+    +'4. 데이터 없으면 해당 항목 생략\n'
+    +'5. 메모 있는 환자만 특이사항에 표시\n';
 
   // 대화 히스토리 구성
   var messages=[];
+  // 시스템 프롬프트를 첫 번째 user 메시지로
+  messages.push({role:'user',parts:[{text:systemPrompt}]});
+  messages.push({role:'model',parts:[{text:'네, 도리도리한의원 AI 어시스턴트입니다. 한국어로 답변하겠습니다.'}]});
+  // 대화 히스토리
   var history=S.aiMessages.slice(0,-1);
   history.forEach(function(m){
     messages.push({role:m.role==='user'?'user':'model',parts:[{text:m.content}]});
   });
-  messages.push({role:'user',parts:[{text:systemPrompt+'\n\n사용자 질문: '+msg}]});
+  // 현재 질문
+  messages.push({role:'user',parts:[{text:msg}]});
 
   // 모델 순서대로 시도
   // 2026년 기준 Google AI Studio 키는 v1beta 사용
@@ -4898,7 +4941,7 @@ window.sendAIMsg=async function(){
       var resp=await fetch('https://generativelanguage.googleapis.com/'+mVer+'/models/'+mName+':generateContent?key='+S.geminiKey,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:messages,generationConfig:{temperature:0.3,maxOutputTokens:2048}})
+        body:JSON.stringify({contents:messages,generationConfig:{temperature:0.1,maxOutputTokens:2048,responseMimeType:'text/plain'}})
       });
       var data=await resp.json();
       console.log('[Gemini] 모델:'+mName+' 상태:'+resp.status, data);
@@ -5252,6 +5295,33 @@ async function init(){
 if(document.readyState==="loading"){
   document.addEventListener("DOMContentLoaded",init);
 } else { init(); }
+</script>
+<script>
+// PWA Service Worker 등록
+if('serviceWorker' in navigator){
+  window.addEventListener('load', function(){
+    navigator.serviceWorker.register('sw.js').then(function(reg){
+      console.log('SW 등록됨:', reg.scope);
+    }).catch(function(err){
+      console.log('SW 등록 실패:', err);
+    });
+  });
+}
+
+// iOS 홈화면 추가 안내 (최초 1회)
+window.addEventListener('load', function(){
+  var isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+  var isInStandaloneMode = ('standalone' in window.navigator) && window.navigator.standalone;
+  var shown = localStorage.getItem('pwa_hint_shown');
+  if(isIOS && !isInStandaloneMode && !shown){
+    setTimeout(function(){
+      var div = document.createElement('div');
+      div.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;z-index:99999;max-width:300px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)';
+      div.innerHTML = '📱 <b>앱으로 설치하기</b><br>하단 공유 버튼 → "홈 화면에 추가"<br><button onclick="this.parentNode.remove();localStorage.setItem('pwa_hint_shown','1')" style="margin-top:8px;background:#2563eb;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer">확인</button>';
+      document.body.appendChild(div);
+    }, 3000);
+  }
+});
 </script>
 </body>
 </html>
