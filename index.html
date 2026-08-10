@@ -4883,33 +4883,45 @@ window.sendAIMsg=async function(){
     +'- 3개월~9개월: 주 2회 (월목 또는 화금)\n'
     +'- 9개월 이후: 주 1회\n'
     +'- 한 주 기준: 월요일~일요일\n\n'
-    +'[환자 정리 질문 시 반드시 아래 형식으로만 답변]\n'
-    +'━━━━━━━━━━━━━━━━━━\n'
+    +'[환자 정리/보고서 질문 시 반드시 아래 형식 그대로 출력]\n'
+    +'━━━━━━━━━━━━━━━━━━━━━━━━\n'
     +'📋 N월 N일 (요일) 진료 현황\n'
-    +'━━━━━━━━━━━━━━━━━━\n'
+    +'━━━━━━━━━━━━━━━━━━━━━━━━\n'
     +'👥 총 환자 N명\n'
-    +'(이름, 이름, 이름, ...)\n\n'
-    +'🚗 자보 TA추나: N명\n'
-    +'(이름, 이름)\n\n'
+    +'→ 이름1, 이름2, 이름3, ... (전체 이름 나열)\n'
+    +'\n'
+    +'🚗 자보(TA추나): N명\n'
+    +'→ 이름1, 이름2\n'
+    +'\n'
     +'🟢 건보추나: N명\n'
-    +'(이름, 이름)\n\n'
+    +'→ 이름1, 이름2\n'
+    +'\n'
     +'👤 신환: N명\n'
-    +'(이름, 이름)\n\n'
+    +'→ 이름1, 이름2\n'
+    +'\n'
     +'🔵 재진: N명\n'
-    +'(이름, 이름)\n\n'
+    +'→ 이름1, 이름2\n'
+    +'\n'
+    +'🟠 6개월재초진: N명\n'
+    +'→ 이름1\n'
+    +'\n'
     +'📅 다음예약 완료: N명 (예약률 N%)\n'
-    +'(이름, 이름)\n\n'
-    +'📝 특이사항\n'
-    +'- 이름: 메모 내용\n'
-    +'━━━━━━━━━━━━━━━━━━\n'
-    +'이 형식에서 해당 없는 항목은 생략하세요.\n'
-    +'예약률 = 다음예약 완료 인원 / 총 환자 × 100\n\n'
-    +'[답변 규칙]\n'
-    +'1. 한국어만 사용\n'
-    +'2. 마크다운 문법(###,**,---,*) 사용 금지\n'
-    +'3. 추론 과정 노출 금지\n'
-    +'4. 데이터 없으면 해당 항목 생략\n'
-    +'5. 메모 있는 환자만 특이사항에 표시\n';
+    +'→ 이름1, 이름2\n'
+    +'\n'
+    +'📝 특이사항(메모 있는 환자만)\n'
+    +'→ 이름: 메모내용\n'
+    +'→ 이름: 메모내용\n'
+    +'━━━━━━━━━━━━━━━━━━━━━━━━\n'
+    +'\n'
+    +'[절대 규칙 - 어기면 안됨]\n'
+    +'1. 반드시 한국어로만 답변 (영어 한 글자도 금지)\n'
+    +'2. 위 형식 그대로 출력 (추가 설명, 분석 금지)\n'
+    +'3. --- ### ** 등 마크다운 완전 금지\n'
+    +'4. 추론과정, 내부생각 출력 절대 금지\n'
+    +'5. 해당 없는 항목은 통째로 생략\n'
+    +'6. 이름은 반드시 전부 나열 (truncated 금지)\n'
+    +'7. 예약률 = 다음예약완료 인원 / 총환자 x 100 (소수점 반올림)\n'
+    +'8. 구분(category) 기준: ta추나=자보TA추나, 건보추나=건보추나, 신환=신환, 재진=재진, 6개월재초진=6개월재초진\n';
 
   // 대화 히스토리 구성
   var messages=[];
@@ -4941,7 +4953,7 @@ window.sendAIMsg=async function(){
       var resp=await fetch('https://generativelanguage.googleapis.com/'+mVer+'/models/'+mName+':generateContent?key='+S.geminiKey,{
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({contents:messages,generationConfig:{temperature:0.1,maxOutputTokens:2048,responseMimeType:'text/plain'}})
+        body:JSON.stringify({contents:messages,generationConfig:{temperature:0.1,maxOutputTokens:4096}})
       });
       var data=await resp.json();
       console.log('[Gemini] 모델:'+mName+' 상태:'+resp.status, data);
