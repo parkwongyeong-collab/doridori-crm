@@ -3505,7 +3505,15 @@ window.hcUpd=(d,id,field,val)=>{
   }
 };
 // ── 솔라피 공통 발송 함수 ──────────────────────────────
-async function solapiSend(to, text){
+// 카카오 알림톡 템플릿 정보
+var KAKAO_TEMPLATES={
+  thanks:{
+    templateId:'KA01TP260804075411522MK6vNRFoh63',
+    text:'안녕하세요, #{이름} 님 도리도리한의원 입니다.   오늘 진료는 어떠셨나요? 정성 어린 치료가  쾌적한 일상에 도움이 되길 바랍니다.  🚨 치료 및 경과 안내🚨 통증의 급성기(발병 후 초기) 3일 동안은 매일 또는 꾸준히 치료를 받으시는 것이 빠른 회복에 가장 효과적입니다. 초기 집중 치료가 재발을 막는 핵심입니다.  ☎ 진료 후 불편하신 점이 있거나 궁금한 사항이 생기시면 언제든 채팅이나 전화로 문의해 주세요. 저희가 세심하게 살피겠습니다.  ⏰진료 시간 안내⏰  📢월~금 : 오전 10시~오후 8시    (점심시간: 12:30~2:00) ○토 : 오전 10시~오후 2시    (점심시간 없이 진료) ○일요일: 오후 1시~오후 6시    (점심시간 없이 진료)  🗓 실시간 예약하기 아래 버튼을 클릭하시면 간편하게 다음 내원 예약을 하실 수 있습니다.'
+  }
+};
+
+async function solapiSend(to, text, kakaoOpts){
   if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return {ok:false,reason:'솔라피 미설정'};
   try{
     const enc=new TextEncoder();
@@ -3514,54 +3522,52 @@ async function solapiSend(to, text){
       const sig=await crypto.subtle.sign('HMAC',key,enc.encode(m));
       return Array.from(new Uint8Array(sig)).map(function(b){return b.toString(16).padStart(2,'0');}).join('');
     };
-    // 솔라피 공식 인증: timestamp(ms) + salt → HMAC-SHA256
-    const ts=new Date().toISOString(); // ISO 형식 사용
+    const ts=new Date().toISOString();
     const salt=Math.random().toString(36).slice(2,12);
     const sig=await HMAC(S.solapiSecret, ts+salt);
     const authHeader='HMAC-SHA256 apiKey='+S.solapiKey+', date='+ts+', salt='+salt+', signature='+sig;
-
-    // 발신/수신 번호 정리
     const toNum=to.replace(/[^0-9]/g,'');
     const fromNum=S.solapiSender.replace(/[^0-9]/g,'');
 
-    console.log('[솔라피] 발송 시도:', {to:toNum, from:fromNum, textLen:text.length});
+    // 메시지 구성 - 알림톡 or SMS
+    var msgBody={
+      to:toNum,
+      from:fromNum,
+      text:text
+    };
+
+    // 알림톡 옵션 있으면 추가
+    if(kakaoOpts&&kakaoOpts.templateId){
+      msgBody.kakaoOptions={
+        pfId:'KA01PF26030503211770jA1Uua0XqgY',
+        templateId:kakaoOpts.templateId,
+        variables:kakaoOpts.variables||{}
+      };
+    }
+
+    console.log('[솔라피] 발송:', {to:toNum, kakao:!!kakaoOpts});
 
     const resp=await fetch('https://api.solapi.com/messages/v4/send',{
       method:'POST',
-      headers:{
-        'Content-Type':'application/json',
-        'Authorization':authHeader
-      },
-      body:JSON.stringify({
-        message:{
-          to:toNum,
-          from:fromNum,
-          text:text
-        }
-      })
+      headers:{'Content-Type':'application/json','Authorization':authHeader},
+      body:JSON.stringify({message:msgBody})
     });
 
-    // 응답 body 파싱
     var bodyText='';
     var body={};
-    try{
-      bodyText=await resp.text();
-      body=JSON.parse(bodyText);
-    }catch(e){ body={raw:bodyText}; }
+    try{ bodyText=await resp.text(); body=JSON.parse(bodyText); }
+    catch(e){ body={raw:bodyText}; }
 
     console.log('[솔라피] 응답:', resp.status, body);
 
-    if(resp.ok){
-      return {ok:true, body:body};
-    }else{
-      var errCode=body.errorCode||String(resp.status);
-      var errMsg=body.errorMessage||bodyText||'알 수 없는 오류';
-      console.error('[솔라피] 오류:', errCode, errMsg);
-      return {ok:false, status:resp.status, errorCode:errCode, reason:errMsg};
-    }
+    if(resp.ok) return {ok:true,body:body};
+    var errCode=body.errorCode||String(resp.status);
+    var errMsg=body.errorMessage||bodyText||'알 수 없는 오류';
+    console.error('[솔라피] 오류:', errCode, errMsg);
+    return {ok:false,status:resp.status,errorCode:errCode,reason:errMsg};
   }catch(e){
     console.error('[솔라피] 예외:', e);
-    return {ok:false, reason:e.message};
+    return {ok:false,reason:e.message};
   }
 }
 
@@ -3607,7 +3613,10 @@ window.hcSendThanks=async function(d){
   for(var i=0;i<targets.length;i++){
     var h=targets[i];
     var txt=(h.visitType==='ta초진'?tmplTA:tmplNew).replace(/{name}/g,h.patientName);
-    var res=await solapiSend(h.phone,txt);
+    // 카카오 알림톡으로 발송 (변수: #{이름})
+    var kakaoOpts={templateId:KAKAO_TEMPLATES.thanks.templateId,variables:{'#{이름}':h.patientName}};
+    var kakaoTxt=KAKAO_TEMPLATES.thanks.text.replace(/#{이름}/g,h.patientName);
+    var res=await solapiSend(h.phone,kakaoTxt,kakaoOpts);
     S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:h.patientName,to:h.phone,type:'방문감사('+h.visitType+')',text:txt,status:res.ok?'success':'error'});
     if(res.ok) ok++; else fail++;
   }
@@ -4484,8 +4493,12 @@ function renderSettings(){
       <div style="margin-top:14px;padding:12px;background:#eff6ff;border-radius:8px;font-size:12px">
         <b style="color:#1d4ed8">✅ 연동 완료 — 해피콜 페이지에서 사용 가능한 기능</b><br>
         <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px">
-          <span>📋 <b>예약확인 일괄발송</b> — 당일 해피콜 등록 전체 환자에게 예약 확인 문자</span>
-          <span>🙏 <b>방문감사 발송</b> — 당일 신환 + TA초진 환자에게 방문 감사 알림</span>
+          <span>📋 <b>예약확인 일괄발송</b> — 당일 해피콜 등록 전체 환자에게 SMS 발송</span>
+          <span>🙏 <b>방문감사 알림톡</b> — 신환·TA초진에게 카카오 알림톡 발송 ✅</span>
+        </div>
+        <div style="margin-top:8px;padding:8px;background:#f0fdf4;border-radius:6px;font-size:11px;color:#065f46">
+          카카오 알림톡 템플릿: 신규 환자 안내 (KA01TP260804...)<br>
+          변수: #{이름} 자동 치환
         </div>
       </div>`:''}
     </div>
