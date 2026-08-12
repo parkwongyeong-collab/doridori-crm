@@ -3258,7 +3258,14 @@ function renderHappyCall(){
             </td>
             <td><input class="minp" placeholder="메모..." value="${(h.memo||'').replace(/"/g,'&quot;')}" style="min-width:100px;font-size:11px" oninput="hcUpd('${d}','${h.id}','memo',this.value)"></td>
             <td style="text-align:center;white-space:nowrap">
-              ${h.phone?`<button type="button" style="font-size:10px;padding:2px 6px;margin-right:3px;background:${['신환','ta초진'].includes(h.visitType)?'#f59e0b':'#e5e7eb'};color:${['신환','ta초진'].includes(h.visitType)?'#fff':'#9ca3af'};border:none;border-radius:4px;cursor:${['신환','ta초진'].includes(h.visitType)?'pointer':'default'}" onclick="${['신환','ta초진'].includes(h.visitType)?`hcSendOne('${d}','${h.id}')`:''}" title="${['신환','ta초진'].includes(h.visitType)?'카카오 알림톡 발송':'신환/TA초진만 발송 가능'}">카톡</button>`:''}
+              ${['신환','ta초진'].includes(h.visitType)?`
+                <button type="button"
+                  onclick="hcSendOne('${d}','${h.id}')"
+                  style="font-size:11px;padding:3px 8px;margin-right:4px;background:#FEE500;color:#3C1E1E;border:none;border-radius:6px;cursor:pointer;font-weight:700"
+                  title="카카오 알림톡 발송">
+                  💬 카톡
+                </button>
+              `:`<span style="font-size:10px;color:#d1d5db;margin-right:8px">-</span>`}
               <button class="ico-btn dl-btn" onclick="hcDel('${d}','${h.id}')">${I.trash}</button>
             </td>
           </tr>`).join('')}
@@ -3655,11 +3662,23 @@ window.hcSendOne=async function(d,id){
   var hcs=getHappyCalls(d);
   var h=hcs.find(function(x){return x.id===id;});
   if(!h) return showToast('환자를 찾을 수 없습니다','err');
-  if(!h.phone) return showToast('전화번호가 없습니다','err');
   if(!['신환','ta초진'].includes(h.visitType)) return showToast('신환/TA초진만 알림톡 발송 가능','err');
   if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return showToast('솔라피 설정을 먼저 해주세요','err');
 
-  if(!confirm(h.patientName+'님에게 카카오 알림톡을 발송할까요?\n\n'+h.phone)) return;
+  // 전화번호 없으면 환자 목록에서 찾기
+  var phone=h.phone;
+  if(!phone&&h.chartNumber){
+    var pt=S.patients.find(function(p){return p.chartNumber===h.chartNumber;});
+    if(pt) phone=pt.phone;
+  }
+  if(!phone&&h.patientName){
+    var pt2=S.patients.find(function(p){return p.name===h.patientName;});
+    if(pt2) phone=pt2.phone;
+  }
+  if(!phone) return showToast(h.patientName+'님 전화번호를 찾을 수 없습니다. 환자 목록에서 번호를 확인해주세요','err');
+
+  var name=h.patientName||'환자';
+  if(!confirm(name+'님에게 카카오 알림톡을 발송할까요?\n\n📱 '+phone+'\n\n[내용 미리보기]\n안녕하세요, '+name+'님 도리도리한의원 입니다. 오늘 진료는 어떠셨나요?...')) return;
 
   showToast('📤 '+h.patientName+'님께 카카오 알림톡 발송 중...');
   var kakaoOpts={templateId:KAKAO_TEMPLATES.thanks.templateId,variables:{'#{이름}':h.patientName}};
