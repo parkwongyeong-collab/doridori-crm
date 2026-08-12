@@ -3257,7 +3257,10 @@ function renderHappyCall(){
               </label>
             </td>
             <td><input class="minp" placeholder="메모..." value="${(h.memo||'').replace(/"/g,'&quot;')}" style="min-width:100px;font-size:11px" oninput="hcUpd('${d}','${h.id}','memo',this.value)"></td>
-            <td style="text-align:center"><button class="ico-btn dl-btn" onclick="hcDel('${d}','${h.id}')">${I.trash}</button></td>
+            <td style="text-align:center;white-space:nowrap">
+              ${h.phone?`<button type="button" style="font-size:10px;padding:2px 6px;margin-right:3px;background:${['신환','ta초진'].includes(h.visitType)?'#f59e0b':'#e5e7eb'};color:${['신환','ta초진'].includes(h.visitType)?'#fff':'#9ca3af'};border:none;border-radius:4px;cursor:${['신환','ta초진'].includes(h.visitType)?'pointer':'default'}" onclick="${['신환','ta초진'].includes(h.visitType)?`hcSendOne('${d}','${h.id}')`:''}" title="${['신환','ta초진'].includes(h.visitType)?'카카오 알림톡 발송':'신환/TA초진만 발송 가능'}">카톡</button>`:''}
+              <button class="ico-btn dl-btn" onclick="hcDel('${d}','${h.id}')">${I.trash}</button>
+            </td>
           </tr>`).join('')}
           </tbody>
         </table></div>`}
@@ -3644,6 +3647,41 @@ window.testSolapiSend=async function(){
       +'- 잔액이 있는지 솔라피 대시보드 확인';
     alert(detail);
     showToast('❌ '+( res.errorCode||res.status||'발송실패'),'err');
+  }
+};
+
+// 개별 환자 알림톡 발송
+window.hcSendOne=async function(d,id){
+  var hcs=getHappyCalls(d);
+  var h=hcs.find(function(x){return x.id===id;});
+  if(!h) return showToast('환자를 찾을 수 없습니다','err');
+  if(!h.phone) return showToast('전화번호가 없습니다','err');
+  if(!['신환','ta초진'].includes(h.visitType)) return showToast('신환/TA초진만 알림톡 발송 가능','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return showToast('솔라피 설정을 먼저 해주세요','err');
+
+  if(!confirm(h.patientName+'님에게 카카오 알림톡을 발송할까요?\n\n'+h.phone)) return;
+
+  showToast('📤 '+h.patientName+'님께 카카오 알림톡 발송 중...');
+  var kakaoOpts={templateId:KAKAO_TEMPLATES.thanks.templateId,variables:{'#{이름}':h.patientName}};
+  var kakaoTxt=KAKAO_TEMPLATES.thanks.text.replace(/#{이름}/g,h.patientName);
+  var res=await solapiSend(h.phone,kakaoTxt,kakaoOpts);
+
+  S.messageLogs.unshift({
+    id:uid(),
+    createdAt:new Date().toLocaleString('ko-KR'),
+    patientName:h.patientName,
+    to:h.phone,
+    type:'방문감사알림톡',
+    text:kakaoTxt,
+    status:res.ok?'success':'error'
+  });
+  save('messageLogs');
+  if(_sb&&S.sbConnected) sbSave('messageLogs').catch(function(e){console.error(e);});
+
+  if(res.ok){
+    showToast('✅ '+h.patientName+'님 카카오 알림톡 발송 완료!');
+  }else{
+    showToast('❌ 발송 실패: '+(res.errorCode||res.reason||'오류'),'err');
   }
 };
 
