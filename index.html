@@ -3202,7 +3202,7 @@ function renderHappyCall(){
           <div style="position:relative;flex:1;min-width:180px">
             <input class="form-inp" placeholder="이름 또는 차트번호..." value="${ptSearch.replace(/"/g,'&quot;')}"
               oninput="S.hcPtSearch=this.value;S.hcAcOpen=true;render()"
-              onblur="setTimeout(()=>{S.hcAcOpen=false;render()},200)">
+              onblur="setTimeout(function(){var b=document.getElementById('hc-ac-box');if(b)b.style.display='none';},200)">
             ${showAc?`<div class="ac-list" style="width:100%">${ptResults.map(p=>`<div class="ac-item" onmousedown="hcAddFromSearch('${d}','${p.id}')">
               <b>${p.name}</b> <span style="color:#9ca3af;font-size:11px">${p.chartNumber}</span>
               <div class="ac-sub">${p.phone||'번호없음'}</div>
@@ -3719,6 +3719,27 @@ window.hcAddManual=(d)=>{
   S.happycalls[d].push(newHC(d,null));
   save('happycalls');render();
 };
+window.updateHcSearch=function(val){
+  S.hcPtSearch=val;
+  var box=document.getElementById('hc-ac-box');
+  if(!box) return;
+  if(!val||!val.trim()){box.style.display='none';return;}
+  var results=searchPt(val).slice(0,10);
+  if(!results.length){
+    box.innerHTML='<div style="padding:12px;text-align:center;color:#9ca3af;font-size:12px">검색 결과 없음</div>';
+    box.style.display='block';return;
+  }
+  var d=S.happycallDate;
+  box.innerHTML=results.map(function(p){
+    return '<div style="padding:10px 14px;cursor:pointer;border-bottom:1px solid #f1f5f9" onmousedown="hcAddFromSearch(\"'+d+'\",\"'+p.id+'\")">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center">'
+      +'<span style="font-weight:600;font-size:14px">'+p.name+'</span>'
+      +'<span style="color:#9ca3af;font-size:11px">'+(p.phone||'번호없음')+'</span>'
+      +'</div><div style="font-size:11px;color:#6b7280;margin-top:2px">차트 '+p.chartNumber+'</div></div>';
+  }).join('');
+  box.style.display='block';
+};
+
 window.hcAddFromSearch=(d,ptId)=>{
   const pt=S.patients.find(p=>p.id===ptId);if(!pt)return;
   if(!S.happycalls[d])S.happycalls[d]=[];
