@@ -3156,6 +3156,14 @@ function renderHappyCall(){
         <button type="button" class="btn" onclick="sendThanksKakaoFromLedger('${d}')" style="background:#059669;color:#fff;border-color:#059669">
           💬 방문감사 알림톡 (신환·TA초진 ${getLedger(d).filter(r=>['신환','ta초진'].includes(r.category)&&r.patientName).length}명)
         </button>
+        <div id="hc-selected-btns-${d}" style="display:none;margin-top:8px;padding:10px;background:#eff6ff;border-radius:8px;border:1px solid #bfdbfe">
+          <span style="font-size:12px;font-weight:600;color:#1d4ed8">✅ 선택: <span id="hc-sel-count-${d}">0</span>명</span>
+          <div style="display:flex;gap:6px;margin-top:6px;flex-wrap:wrap">
+            <button type="button" class="btn btn-sm" onclick="sendSelectedThanks('${d}')" style="background:#FEE500;color:#3C1E1E;border-color:#e6d000;font-weight:700;font-size:11px">💬 선택 방문감사</button>
+            <button type="button" class="btn btn-sm" onclick="sendSelectedAppt('${d}')" style="background:#2563eb;color:#fff;border-color:#2563eb;font-size:11px">💬 선택 예약확인</button>
+            <button type="button" class="btn btn-sm" onclick="hcClearSelection('${d}')" style="font-size:11px">취소</button>
+          </div>
+        </div>
       </div>`:`
       <div style="margin-bottom:12px;padding:10px 14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e">
         ⚠️ 문자 발송을 사용하려면 <b>설정 페이지</b>에서 솔라피 API 키를 입력하세요
@@ -3839,6 +3847,124 @@ window.sendApptKakao=async function(d,rowId){
   }
 };
 
+// 해피콜 체크박스 전체 선택
+window.hcToggleAll=function(checked,d){
+  document.querySelectorAll('.hc-row-check').forEach(function(cb){cb.checked=checked;});
+  hcUpdateSelected(d);
+};
+
+// 선택 현황 업데이트
+window.hcUpdateSelected=function(d){
+  var checks=document.querySelectorAll('.hc-row-check:checked');
+  var count=checks.length;
+  var countEl=document.getElementById('hc-sel-count-'+d);
+  var btnArea=document.getElementById('hc-selected-btns-'+d);
+  if(countEl) countEl.textContent=count;
+  if(btnArea) btnArea.style.display=count>0?'block':'none';
+};
+
+// 선택 해제
+window.hcClearSelection=function(d){
+  document.querySelectorAll('.hc-row-check').forEach(function(cb){cb.checked=false;});
+  var allCb=document.getElementById('hc-check-all');
+  if(allCb) allCb.checked=false;
+  hcUpdateSelected(d);
+};
+
+// 선택된 환자 ID 목록 가져오기
+function getSelectedHcIds(){
+  var ids=[];
+  document.querySelectorAll('.hc-row-check:checked').forEach(function(cb){
+    ids.push(cb.getAttribute('data-hcid'));
+  });
+  return ids;
+}
+
+// 선택 환자 방문감사 알림톡
+window.sendSelectedThanks=async function(d){
+  var ids=getSelectedHcIds();
+  if(!ids.length) return showToast('환자를 선택해주세요','err');
+  var hcs=getHappyCalls(d);
+  var targets=ids.map(function(id){return hcs.find(function(h){return h.id===id;});}).filter(Boolean);
+
+  // 전화번호 없으면 환자목록에서 찾기
+  targets=targets.map(function(h){
+    var phone=h.phone||'';
+    if(!phone){
+      var pt=S.patients.find(function(p){return p.chartNumber===h.chartNumber||(p.name===h.patientName&&!h.chartNumber);});
+      if(pt) phone=pt.phone||'';
+    }
+    return {h:h, phone:phone};
+  }).filter(function(x){return x.phone;});
+
+  if(!targets.length) return showToast('전화번호가 있는 환자가 없습니다','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return showToast('솔라피 설정을 먼저 해주세요','err');
+
+  var preview=targets.map(function(x){return x.h.patientName+'('+x.h.visitType+') '+x.phone;}).join('\n');
+  if(!confirm(targets.length+'명에게 방문감사 알림톡을 발송할까요?\n\n'+preview)) return;
+  showToast('📤 '+targets.length+'명 방문감사 알림톡 발송 중...');
+
+  var ok=0,fail=0;
+  for(var i=0;i<targets.length;i++){
+    var x=targets[i];
+    var kakaoTxt=KAKAO_TEMPLATES.thanks.text.replace(/#{이름}/g,x.h.patientName);
+    var res=await solapiSend(x.phone,kakaoTxt,{templateId:KAKAO_TEMPLATES.thanks.templateId,variables:{'#{이름}':x.h.patientName}});
+    S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:x.h.patientName,to:x.phone,type:'방문감사알림톡(선택)',text:kakaoTxt,status:res.ok?'success':'error'});
+    if(res.ok) ok++; else{fail++;alert('❌ '+x.h.patientName+' 실패\n'+JSON.stringify(res.body||res,null,2));}
+  }
+  save('messageLogs');
+  if(_sb&&S.sbConnected) sbSave('messageLogs').catch(function(e){console.error(e);});
+  showToast('✅ 방문감사 '+ok+'명 완료'+(fail?' / ❌ '+fail+'명 실패':''));
+  hcClearSelection(d);
+};
+
+// 선택 환자 예약확인 알림톡
+window.sendSelectedAppt=async function(d){
+  var ids=getSelectedHcIds();
+  if(!ids.length) return showToast('환자를 선택해주세요','err');
+  var hcs=getHappyCalls(d);
+  var targets=ids.map(function(id){return hcs.find(function(h){return h.id===id;});}).filter(Boolean);
+
+  // 예약날짜 있는 환자만 + 전화번호 조회
+  var apptTargets=[];
+  targets.forEach(function(h){
+    // 일계표에서 예약날짜 찾기
+    var ledgerRow=getLedger(d).find(function(r){return r.chartNumber===h.chartNumber||(r.patientName===h.patientName&&!h.chartNumber);});
+    if(!ledgerRow||!ledgerRow.appointmentDate) return;
+    var phone=h.phone||'';
+    if(!phone){
+      var pt=S.patients.find(function(p){return p.chartNumber===h.chartNumber;});
+      if(pt) phone=pt.phone||'';
+    }
+    if(phone) apptTargets.push({h:h, phone:phone, row:ledgerRow});
+  });
+
+  if(!apptTargets.length) return showToast('예약날짜가 있는 환자가 없습니다\n(일계표에서 예약날짜 입력 필요)','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return showToast('솔라피 설정을 먼저 해주세요','err');
+
+  var preview=apptTargets.map(function(x){
+    var v=makeApptVars(x.h.patientName,x.row.appointmentDate,x.row.appointmentTime||'');
+    return x.h.patientName+' '+v['#{요일}']+' '+v['#{월}']+v['#{일}']+' '+v['#{시간}'];
+  }).join('\n');
+  if(!confirm(apptTargets.length+'명에게 예약확인 알림톡을 발송할까요?\n\n'+preview)) return;
+  showToast('📤 '+apptTargets.length+'명 예약확인 알림톡 발송 중...');
+
+  var ok=0,fail=0;
+  for(var i=0;i<apptTargets.length;i++){
+    var x=apptTargets[i];
+    var vars=makeApptVars(x.h.patientName,x.row.appointmentDate,x.row.appointmentTime||'');
+    var useT=KAKAO_TEMPLATES.appt2||KAKAO_TEMPLATES.appt;
+    var txt=useT.text.replace(/#{이름}/g,x.h.patientName).replace(/#{성함}/g,x.h.patientName).replace(/#{요일}/g,vars['#{요일}']).replace(/#{월}/g,vars['#{월}']).replace(/#{일}/g,vars['#{일}']).replace(/#{시간}/g,vars['#{시간}']);
+    var res=await solapiSend(x.phone,txt,{templateId:useT.templateId,variables:vars});
+    S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:x.h.patientName,to:x.phone,type:'예약확인알림톡(선택)',text:txt,status:res.ok?'success':'error'});
+    if(res.ok) ok++; else{fail++;alert('❌ '+x.h.patientName+' 실패\n'+JSON.stringify(res.body||res,null,2));}
+  }
+  save('messageLogs');
+  if(_sb&&S.sbConnected) sbSave('messageLogs').catch(function(e){console.error(e);});
+  showToast('✅ 예약확인 '+ok+'명 완료'+(fail?' / ❌ '+fail+'명 실패':''));
+  hcClearSelection(d);
+};
+
 window.hcSendOne=async function(d,id){
   var hcs=getHappyCalls(d);
   var h=hcs.find(function(x){return x.id===id;});
@@ -3881,7 +4007,7 @@ window.hcSendOne=async function(d,id){
   if(res.ok){
     showToast('✅ '+h.patientName+'님 카카오 알림톡 발송 완료!');
   }else{
-    showToast('❌ 발송 실패: '+(res.errorCode||res.reason||'오류'),'err');
+    alert('❌ 발송실패\n'+JSON.stringify(res,null,2));
   }
 };
 
