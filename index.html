@@ -381,7 +381,7 @@ var S={
   patients:[],ledger:{},employees:[],
   schedule:{},messageLogs:[],inpatients:{},happycalls:{},
   ledgerDate:todayStr(),calMonth:todayStr().slice(0,7),scheduleMonth:todayStr().slice(0,7),happycallDate:todayStr(),
-  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],notices:{},statsTab:'daily',statsCustomStart:'',statsCustomEnd:'',goalRevenue:0,geminiKey:'',aiMessages:[],
+  modal:null,toast:null,searchQ:'',isLoggedIn:false,hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],notices:{},statsTab:'daily',statsCustomStart:'',statsCustomEnd:'',goalRevenue:0,geminiKey:'',aiMessages:[],reminderHour:'9',
   user:{name:'관리자',email:'pwk2956@naver.com',role:'admin'},
   solapiKey:'',solapiSecret:'',solapiSender:'',
   supabaseUrl:'https://mzdxunkqewctmognveqo.supabase.co',supabaseKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA',sbConnected:false,
@@ -3266,14 +3266,12 @@ function renderHappyCall(){
             </td>
             <td><input class="minp" placeholder="메모..." value="${(h.memo||'').replace(/"/g,'&quot;')}" style="min-width:100px;font-size:11px" oninput="hcUpd('${d}','${h.id}','memo',this.value)"></td>
             <td style="text-align:center;white-space:nowrap">
-              ${['신환','ta초진'].includes(h.visitType)?`
-                <button type="button"
-                  onclick="hcSendOne('${d}','${h.id}')"
-                  style="font-size:11px;padding:3px 8px;margin-right:4px;background:#FEE500;color:#3C1E1E;border:none;border-radius:6px;cursor:pointer;font-weight:700"
-                  title="카카오 알림톡 발송">
-                  💬 카톡
-                </button>
-              `:`<span style="font-size:10px;color:#d1d5db;margin-right:8px">-</span>`}
+              <button type="button"
+                onclick="hcSendOne('${d}','${h.id}')"
+                style="font-size:11px;padding:3px 8px;margin-right:4px;background:${['신환','ta초진'].includes(h.visitType)?'#FEE500':'#f3f4f6'};color:${['신환','ta초진'].includes(h.visitType)?'#3C1E1E':'#6b7280'};border:1px solid ${['신환','ta초진'].includes(h.visitType)?'#e6d000':'#e5e7eb'};border-radius:6px;cursor:pointer;font-weight:700"
+                title="${['신환','ta초진'].includes(h.visitType)?'방문감사 알림톡':'알림톡 발송'}">
+                💬카톡
+              </button>
               <button class="ico-btn dl-btn" onclick="hcDel('${d}','${h.id}')">${I.trash}</button>
             </td>
           </tr>`).join('')}
@@ -3525,6 +3523,11 @@ window.hcUpd=(d,id,field,val)=>{
 // ── 솔라피 공통 발송 함수 ──────────────────────────────
 // 카카오 알림톡 템플릿 정보
 var KAKAO_TEMPLATES={
+  // 예약안내 알림톡 (새로 승인됨)
+  appt2:{
+    templateId:'KA01TP2608040758579734ZONohQ4j7f',
+    text:'🚑 도리도리한의원 예약 안내 🚑\n#{이름}님의 진료 예약 시간은\n#{월}, #{일} #{요일} #{시간} 입니다.\n진료실에서 뵙겠습니다.'
+  },
   // 방문감사 알림톡 (신환/TA초진)
   thanks:{
     templateId:'KA01TP260804075411522MK6vNRFoh63',
@@ -3546,9 +3549,10 @@ function makeApptVars(patientName, dateStr, timeStr){
   var month=String(dt.getMonth()+1)+'월';
   var day=String(dt.getDate())+'일';
   var weekday=WEEK_DAYS[dt.getDay()];
-  var time=timeStr?timeStr+'시':'';
+  var time=timeStr||'';  // "14:30" 그대로 전달
   return {
     '#{성함}':patientName,
+    '#{이름}':patientName,  // 새 예약안내 템플릿용
     '#{요일}':weekday,
     '#{월}':month,
     '#{일}':day,
@@ -3582,10 +3586,13 @@ async function solapiSend(to, text, kakaoOpts){
     // 알림톡 옵션 있으면 추가
     if(kakaoOpts&&kakaoOpts.templateId){
       msgBody.kakaoOptions={
-        pfId:'KA01PF26030503211770jA1Uua0XqgY',
+        pfId:'KA01PF260305032117770jA1Uua0XqgY',
         templateId:kakaoOpts.templateId,
-        variables:kakaoOpts.variables||{}
+        variables:kakaoOpts.variables||{},
+        disableSms:false  // 카카오톡 미설치 시 SMS 대체 발송
       };
+      // 알림톡 발송 시 type 지정
+      msgBody.type='ATA';
     }
 
     console.log('[솔라피] 발송:', {to:toNum, kakao:!!kakaoOpts});
@@ -3724,7 +3731,8 @@ window.sendApptKakaoAll=async function(d){
       .replace(/#{월}/g,vars['#{월}'])
       .replace(/#{일}/g,vars['#{일}'])
       .replace(/#{시간}/g,vars['#{시간}']);
-    var res=await solapiSend(x.phone,txt,{templateId:KAKAO_TEMPLATES.appt.templateId,variables:vars});
+    var useT=KAKAO_TEMPLATES.appt2||KAKAO_TEMPLATES.appt;
+    var res=await solapiSend(x.phone,txt,{templateId:useT.templateId,variables:vars});
     S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:x.row.patientName,to:x.phone,type:'예약확인알림톡',text:txt,status:res.ok?'success':'error'});
     if(res.ok)ok++;else fail++;
   }
@@ -3790,7 +3798,9 @@ window.sendApptKakao=async function(d,rowId){
   if(!confirm('예약 알림톡을 발송할까요?\n\n'+preview)) return;
 
   showToast('📤 '+r.patientName+'님께 예약 알림톡 발송 중...');
-  var kakaoOpts={templateId:KAKAO_TEMPLATES.appt.templateId,variables:vars};
+  // 새 예약안내 템플릿(appt2) 우선 사용
+  var useTemplate=KAKAO_TEMPLATES.appt2||KAKAO_TEMPLATES.appt;
+  var kakaoOpts={templateId:useTemplate.templateId,variables:vars};
   var res=await solapiSend(phone,txt,kakaoOpts);
 
   S.messageLogs.unshift({
@@ -3807,6 +3817,22 @@ window.sendApptKakao=async function(d,rowId){
 
   if(res.ok){
     showToast('✅ '+r.patientName+'님 예약 알림톡 발송 완료!');
+    // 당일 알림을 위해 appt_notifications 테이블에 저장
+    if(_sb&&S.sbConnected){
+      _sb.from('appt_notifications').upsert([{
+        id:'appt:'+r.id,
+        patient_name:r.patientName,
+        phone:phone,
+        appt_date:r.appointmentDate,
+        appt_time:r.appointmentTime||'',
+        ledger_date:d,
+        confirm_sent:true,
+        reminder_sent:false
+      }],{onConflict:'id'}).then(function(result){
+        if(result.error) console.error('appt_notifications 저장 오류:',result.error);
+        else console.log('[예약알림] DB 저장 완료:', r.patientName);
+      });
+    }
   }else{
     showToast('❌ 발송 실패: '+(res.errorCode||res.reason||'오류'),'err');
     console.error('[예약알림톡]',res);
@@ -3817,7 +3843,7 @@ window.hcSendOne=async function(d,id){
   var hcs=getHappyCalls(d);
   var h=hcs.find(function(x){return x.id===id;});
   if(!h) return showToast('환자를 찾을 수 없습니다','err');
-  if(!['신환','ta초진'].includes(h.visitType)) return showToast('신환/TA초진만 알림톡 발송 가능','err');
+  // 모든 구분 발송 가능 (신환/TA초진은 방문감사, 나머지는 기본 안내)
   if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return showToast('솔라피 설정을 먼저 해주세요','err');
 
   // 전화번호 없으면 환자 목록에서 찾기
@@ -3899,13 +3925,51 @@ window.hcAddFromSearch=(d,ptId)=>{
   const pt=S.patients.find(p=>p.id===ptId);if(!pt)return;
   if(!S.happycalls[d])S.happycalls[d]=[];
   if(S.happycalls[d].some(h=>h.chartNumber===pt.chartNumber)){
-    showToast('이미 추가된 환자입니다','err');S.hcPtSearch='';S.hcAcOpen=false;render();return;
+    showToast('이미 추가된 환자입니다','err');
+    S.hcPtSearch='';
+    var box=document.getElementById('hc-ac-box');
+    if(box)box.style.display='none';
+    return;
   }
   S.happycalls[d].push(newHC(d,pt));
   save('happycalls');
   if(_sb&&S.sbConnected) sbSave('happycalls');
-  S.hcPtSearch='';S.hcAcOpen=false;render();
-  showToast(pt.name+' 추가됨 ✓');
+  S.hcPtSearch='';
+  var box=document.getElementById('hc-ac-box');
+  if(box)box.style.display='none';
+  var inp=document.getElementById('hc-pt-search-input');
+  if(inp)inp.value='';
+  render();
+
+  // 추가 후 알림톡 발송 여부 팝업
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender){
+    showToast(pt.name+' 추가됨 ✓');
+    return;
+  }
+  setTimeout(function(){
+    var msg=pt.name+'님을 해피콜에 추가했습니다.\n\n카카오 알림톡을 발송할까요?\n\n'
+      +'📱 '+(pt.phone||'번호없음')+'\n\n'
+      +'[방문감사] 신환/TA초진 방문감사 알림톡';
+    if(pt.phone&&confirm(msg)){
+      hcSendKakaoByPt(pt,d);
+    }else{
+      showToast(pt.name+' 추가됨 ✓');
+    }
+  },100);
+};
+
+// 환자 객체로 바로 알림톡 발송
+window.hcSendKakaoByPt=async function(pt,d){
+  if(!pt.phone) return showToast('전화번호가 없습니다','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender) return showToast('솔라피 설정 필요','err');
+  showToast('📤 '+pt.name+'님께 방문감사 알림톡 발송 중...');
+  var kakaoTxt=KAKAO_TEMPLATES.thanks.text.replace(/#{이름}/g,pt.name);
+  var res=await solapiSend(pt.phone,kakaoTxt,{templateId:KAKAO_TEMPLATES.thanks.templateId,variables:{'#{이름}':pt.name}});
+  S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:pt.name,to:pt.phone,type:'방문감사알림톡',text:kakaoTxt,status:res.ok?'success':'error'});
+  save('messageLogs');
+  if(_sb&&S.sbConnected) sbSave('messageLogs').catch(function(e){console.error(e);});
+  if(res.ok) showToast('✅ '+pt.name+'님 방문감사 알림톡 발송 완료!');
+  else showToast('❌ 발송 실패: '+(res.errorCode||res.reason||'오류'),'err');
 };
 window.hcImportFromLedger=async(d)=>{
   // Supabase 연결됐는데 환자 비어있으면 먼저 로드
@@ -4753,6 +4817,29 @@ function renderSettings(){
       <button class="btn btn-danger" onclick="if(confirm('모든 데이터를 초기화하시겠습니까?\n되돌릴 수 없습니다! 백업을 먼저 받으세요.'))clearAllData()">전체 초기화</button>
     </div>
 
+    <!-- 예약 당일 알림 시간 설정 -->
+    <div class="setting-section">
+      <div class="setting-title">⏰ 예약 당일 알림톡 발송 시간</div>
+      <div style="font-size:12px;color:#6b7280;margin-bottom:12px">
+        예약 당일 아침에 자동으로 알림톡을 발송합니다.<br>
+        Supabase Edge Function이 매시간 실행되어 설정한 시간에 자동 발송됩니다.
+      </div>
+      <div class="form-group">
+        <label class="lbl">알림 발송 시간</label>
+        <select class="form-inp" style="max-width:200px" onchange="S.reminderHour=this.value">
+          ${[7,8,9,10,11].map(h=>`<option value="${h}" ${(S.reminderHour||'9')==String(h)?'selected':''}>오전 ${h}시</option>`).join('')}
+        </select>
+      </div>
+      <button type="button" class="btn btn-primary" onclick="
+        S.reminderHour=S.reminderHour||'9';
+        save('reminderHour');
+        if(_sb&&S.sbConnected){
+          _sb.from('settings').upsert([{key:'reminder_hour',value:String(S.reminderHour),updated_at:new Date().toISOString()}],{onConflict:'key'})
+          .then(function(){showToast('✅ 알림 시간 저장됨 (오전 '+S.reminderHour+'시)');render();});
+        }else{showToast('✅ 로컬 저장됨');render();}
+      ">💾 저장</button>
+    </div>
+
     <!-- 제미나이 AI 설정 -->
     <div class="setting-section" style="border:2px solid ${S.geminiKey?'#a7f3d0':'#e5e7eb'};background:${S.geminiKey?'#f0fdf4':'#fff'}">
       <div class="setting-title">🤖 Google Gemini AI 연동 ${S.geminiKey?'<span class="badge badge-green">연동됨</span>':'<span class="badge badge-gray">미연동</span>'}</div>
@@ -5575,17 +5662,24 @@ if('serviceWorker' in navigator){
 
 // iOS 홈화면 추가 안내 (최초 1회)
 window.addEventListener('load', function(){
-  var isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
-  var isInStandaloneMode = ('standalone' in window.navigator) && window.navigator.standalone;
-  var shown = localStorage.getItem('pwa_hint_shown');
-  if(isIOS && !isInStandaloneMode && !shown){
-    setTimeout(function(){
-      var div = document.createElement('div');
-      div.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;z-index:99999;max-width:300px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)';
-      div.innerHTML = '📱 <b>앱으로 설치하기</b><br>하단 공유 버튼 → "홈 화면에 추가"<br><button onclick="this.parentNode.remove();localStorage.setItem('pwa_hint_shown','1')" style="margin-top:8px;background:#2563eb;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer">확인</button>';
-      document.body.appendChild(div);
-    }, 3000);
-  }
+  try{
+    var isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    var isInStandaloneMode = ('standalone' in window.navigator) && window.navigator.standalone;
+    var shown = localStorage.getItem('pwa_hint_shown');
+    if(isIOS && !isInStandaloneMode && !shown){
+      setTimeout(function(){
+        var div = document.createElement('div');
+        div.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;z-index:99999;max-width:300px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)';
+        var btn = document.createElement('button');
+        btn.textContent = '확인';
+        btn.style.cssText = 'margin-top:8px;background:#2563eb;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;display:block;margin:8px auto 0';
+        btn.onclick = function(){ div.remove(); try{localStorage.setItem('pwa_hint_shown','1');}catch(e){} };
+        div.innerHTML = '📱 <b>앱으로 설치하기</b><br>하단 공유 버튼 → 홈 화면에 추가<br>';
+        div.appendChild(btn);
+        document.body.appendChild(div);
+      }, 3000);
+    }
+  }catch(e){}
 });
 </script>
 </body>
