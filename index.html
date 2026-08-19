@@ -5785,18 +5785,29 @@ if('serviceWorker' in navigator){
 
 // iOS 홈화면 추가 안내 (최초 1회)
 window.addEventListener('load', function(){
-  var isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
-  var isInStandaloneMode = ('standalone' in window.navigator) && window.navigator.standalone;
-  var shown = localStorage.getItem('pwa_hint_shown');
-  if(isIOS && !isInStandaloneMode && !shown){
-    setTimeout(function(){
-      var div = document.createElement('div');
-      div.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;z-index:99999;max-width:300px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)';
-      div.innerHTML = '📱 <b>앱으로 설치하기</b><br>하단 공유 버튼 → "홈 화면에 추가"<br><button onclick="this.parentNode.remove();localStorage.setItem('pwa_hint_shown','1')" style="margin-top:8px;background:#2563eb;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer">확인</button>';
-      document.body.appendChild(div);
-    }, 3000);
-  }
-});
-</script>
+  try{
+    var isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+    var isInStandaloneMode = ('standalone' in window.navigator) && window.navigator.standalone;
+    var shown = localStorage.getItem('pwa_hint_shown');
+    if(isIOS && !isInStandaloneMode && !shown){
+      setTimeout(function(){
+        var div = document.createElement('div');
+        div.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;z-index:99999;max-width:300px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)';
+        var txt = document.createElement('div');
+        txt.innerHTML = '📱 <b>앱으로 설치하기</b><br>하단 공유 버튼 → 홈 화면에 추가';
+        var btn = document.createElement('button');
+        btn.textContent = '확인';
+        btn.style.cssText = 'margin-top:8px;background:#2563eb;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;display:block;margin:8px auto 0';
+        btn.onclick = function(){
+          div.remove();
+          try{localStorage.setItem('pwa_hint_shown','1');}catch(e){}
+        };
+        div.appendChild(txt);
+        div.appendChild(btn);
+        document.body.appendChild(div);
+      }, 3000);
+    }
+  }catch(e){}
+});/script>
 </body>
 </html>
