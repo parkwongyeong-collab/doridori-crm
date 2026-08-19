@@ -4967,6 +4967,14 @@ function renderClinic(){
     +'<pre id="clinic-preview-txt" style="font-size:13px;color:#374151;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin:0;font-family:inherit;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px"></pre>'
     +'</div>'
     +'<div id="clinic-saved" style="display:none;margin-top:12px;padding:14px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;font-size:13px;color:#16a34a"></div>'
+    // 과거 차트 목록
+    +(sel.length>0
+      ? '<div id="clinic-history-sec" style="margin-top:16px">'
+        +'<div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:10px">📋 '+sel[0].name+'님 과거 진료 기록</div>'
+        +'<div id="clinic-history-list" style="font-size:13px;color:#9ca3af;text-align:center;padding:16px">불러오는 중...</div>'
+        +'</div>'
+      : ''
+    )
     +'</div>';
 }
 
@@ -4997,7 +5005,14 @@ window.clinicTogglePt=function(ptId){
   else S.clinicSelectedPts.push({id:pt.id,name:pt.name,phone:pt.phone||'',chartNumber:pt.chartNumber});
   S.clinicPatientId=S.clinicSelectedPts.length>0?S.clinicSelectedPts[0].id:null;
   render();
-  setTimeout(function(){var inp=document.getElementById('clinic-pt-inp');if(inp){inp.focus();inp.value=S.clinicPtSearchVal||'';}},10);
+  setTimeout(function(){
+    var inp=document.getElementById('clinic-pt-inp');
+    if(inp){inp.focus();inp.value=S.clinicPtSearchVal||'';}
+    // 과거 차트 로드
+    if(S.clinicSelectedPts&&S.clinicSelectedPts.length>0){
+      clinicLoadHistory(S.clinicSelectedPts[0].id, S.clinicSelectedPts[0].name);
+    }
+  },10);
 };
 window.clinicRemovePt=function(ptId){
   if(!S.clinicSelectedPts)return;
@@ -5145,13 +5160,108 @@ window.clinicSaveChart=async function(){
       doctor:S.user.name||''
     }]).catch(function(e){console.error(e);});
   }
+  // 일계표 메모 자동 업데이트
+  if(sel.length>0&&_sb&&S.sbConnected){
+    var today2=todayStr();
+    var ledgerRows=getLedger(today2);
+    var targetRow=ledgerRows.find(function(r){
+      return r.chartNumber===sel[0].chartNumber||(r.patientName===sel[0].name);
+    });
+    if(targetRow){
+      var nl2sp=function(str){return str?str.split('\n').join(' '):'';}; 
+      var memo='[차트'+today2+'] VAS '+vas+'/10'
+        +(s?' S:'+nl2sp(s):'')
+        +(a?' A:'+nl2sp(a):'')
+        +(p?' P:'+nl2sp(p):'')
+        +(na?' 예약:'+na:'');
+      targetRow.memo=targetRow.memo?(targetRow.memo+' / '+memo):memo;
+      save('ledger');
+      if(_sb&&S.sbConnected)sbSave('ledger').catch(function(e){console.error(e);});
+      console.log('[진료실] 일계표 메모 업데이트:', sel[0].name);
+    }
+  }
+
   var saved=document.getElementById('clinic-saved');
   if(saved){
-    saved.innerHTML='✅ 차트 저장 완료'+(sel.length>0?' — '+sel[0].name+' 환자':'')+'<br><small style="opacity:.7">Supabase clinic_charts 저장됨</small>';
+    saved.innerHTML='✅ 차트 저장 완료'+(sel.length>0?' — '+sel[0].name+' 환자':'')
+      +'<br><small style="opacity:.7">Supabase clinic_charts 저장 + 일계표 메모 업데이트</small>';
     saved.style.display='block';
   }
   showToast('✅ 진료 차트 저장 완료!');
+  // 과거 차트 목록 새로고침
+  if(sel.length>0)setTimeout(function(){clinicLoadHistory(sel[0].id,sel[0].name);},500);
 };
+// 과거 차트 로드
+window.clinicLoadHistory=async function(ptId, ptName){
+  var listEl=document.getElementById('clinic-history-list');
+  if(!listEl)return;
+  listEl.innerHTML='<div style="color:#9ca3af;text-align:center;padding:12px">불러오는 중...</div>';
+
+  if(!_sb||!S.sbConnected){
+    listEl.innerHTML='<div style="color:#9ca3af;text-align:center;padding:12px">Supabase 미연결</div>';
+    return;
+  }
+
+  var result=await _sb.from('clinic_charts')
+    .select('*')
+    .eq('patient_id', ptId)
+    .order('visit_date',{ascending:false})
+    .limit(10);
+
+  if(result.error||!result.data||!result.data.length){
+    listEl.innerHTML='<div style="color:#9ca3af;text-align:center;padding:12px">저장된 진료 기록이 없습니다</div>';
+    return;
+  }
+
+  listEl.innerHTML=result.data.map(function(c){
+    return '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:8px;background:#fff;cursor:pointer" onclick="clinicShowChart(\''+c.id+'\')" data-cid="'+c.id+'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<span style="font-weight:600;font-size:13px;color:#111827">'+c.visit_date+'</span>'
+      +'<div style="display:flex;gap:6px;align-items:center">'
+      +'<span style="font-size:11px;background:#f3f4f6;padding:2px 8px;border-radius:20px;color:#374151">VAS '+c.vas+'/10</span>'
+      +(c.next_treatment?'<span style="font-size:11px;background:#eff6ff;padding:2px 8px;border-radius:20px;color:#2563eb">'+c.next_treatment+'</span>':'')
+      +'</div></div>'
+      +(c.soap_s?'<div style="font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">S: '+c.soap_s.replace(/\n/g,' ')+'</div>':'')
+      +(c.soap_a?'<div style="font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">A: '+c.soap_a.replace(/\n/g,' ')+'</div>':'')
+      +'</div>';
+  }).join('');
+};
+
+// 과거 차트 상세 보기
+window.clinicShowChart=function(chartId){
+  var el=document.querySelector('[data-cid="'+chartId+'"]');
+  if(!el)return;
+  var existing=document.getElementById('chart-detail-'+chartId);
+  if(existing){existing.remove();return;}
+
+  if(!_sb||!S.sbConnected)return;
+  _sb.from('clinic_charts').select('*').eq('id',chartId).single().then(function(result){
+    if(result.error||!result.data)return;
+    var c=result.data;
+    var lines=[
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+      '📋 진료 차트 — '+c.visit_date,
+      '👤 환자: '+c.patient_name+(c.chart_number?' ('+c.chart_number+')':''),
+      '📊 VAS: '+c.vas+'/10',
+      '━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    ];
+    if(c.soap_s)lines.push('[S — 주소증]\n'+c.soap_s);
+    if(c.soap_o)lines.push('[O — 객관적 소견]\n'+c.soap_o);
+    if(c.soap_a)lines.push('[A — 진단]\n'+c.soap_a);
+    if(c.soap_p)lines.push('[P — 치료 계획]\n'+c.soap_p);
+    if(c.next_appt)lines.push('[📅 다음 예약]\n'+c.next_appt+(c.next_treatment?' ('+c.next_treatment+')':''));
+    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    var txt=lines.join('\n\n');
+
+    var detail=document.createElement('div');
+    detail.id='chart-detail-'+chartId;
+    detail.style.cssText='margin-top:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px';
+    detail.innerHTML='<pre style="font-size:12px;color:#374151;line-height:1.7;white-space:pre-wrap;word-break:break-word;margin:0;font-family:inherit">'+txt+'</pre>'
+      +'<button onclick="navigator.clipboard.writeText('+JSON.stringify(txt)+').then(function(){showToast(\'📋 복사됨 ✓\');})" style="margin-top:8px;padding:5px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">📋 복사</button>';
+    el.appendChild(detail);
+  });
+};
+
 window.clinicClearAll=function(){
   _clinicTxt='';S.clinicPtSearchVal='';S.clinicSelectedPts=[];S.clinicPatientId=null;S.clinicVas=5;
   var box=document.getElementById('clinic-transcript');
