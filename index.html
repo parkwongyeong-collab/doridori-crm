@@ -5141,6 +5141,7 @@ window.clinicRegenerate=function(){if(_clinicTxt.trim())clinicGenerateSOAP(_clin
 window.clinicSaveChart=async function(){
   var get=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
   var s=get('clinic-soap-s'),o=get('clinic-soap-o'),a=get('clinic-soap-a'),p=get('clinic-soap-p');
+  var na=get('clinic-next');
   var err=document.getElementById('clinic-err');
   if(!s&&!o&&!a&&!p){if(err)err.style.display='block';return;}
   if(err)err.style.display='none';
