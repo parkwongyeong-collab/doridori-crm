@@ -381,7 +381,7 @@ var S={
   patients:[],ledger:{},employees:[],
   schedule:{},messageLogs:[],inpatients:{},happycalls:{},
   ledgerDate:todayStr(),calMonth:todayStr().slice(0,7),scheduleMonth:todayStr().slice(0,7),happycallDate:todayStr(),
-  modal:null,toast:null,searchQ:'',isLoggedIn:false,clinicVas:5,clinicPatientId:null,clinicPtSearchVal:'',clinicSelectedPts:[],hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],notices:{},statsTab:'daily',statsCustomStart:'',statsCustomEnd:'',goalRevenue:0,geminiKey:'',aiMessages:[],
+  modal:null,toast:null,searchQ:'',isLoggedIn:false,clinicVas:5,clinicPatientId:null,clinicPtSearchVal:'',hcPtSearch:'',hcAcOpen:false,hcTab:'daily',drawerOpen:false,hcPopup:null,bgModal_month:null,bgModal_search:'',ptSortKey:'chart',ptSortDir:'asc',ptSelected:new Set(),ptSelectMode:false,ptPage:1,quickAppts:[],_quickApptDate:'',quickApptsHistory:[],notices:{},statsTab:'daily',statsCustomStart:'',statsCustomEnd:'',goalRevenue:0,geminiKey:'',aiMessages:[],
   user:{name:'관리자',email:'pwk2956@naver.com',role:'admin'},
   solapiKey:'',solapiSecret:'',solapiSender:'',
   supabaseUrl:'https://mzdxunkqewctmognveqo.supabase.co',supabaseKey:'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im16ZHh1bmtxZXdjdG1vZ252ZXFvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3ODQ2NTMsImV4cCI6MjA4OTM2MDY1M30.5e891hcJA7gBMqAgwglEjgHzIHLB_sSTVanu25EIizA',sbConnected:false,
@@ -1484,90 +1484,22 @@ const BOTTOM_TABS=[
   {id:'patients',  icon:'<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>', label:'환자'},
   {id:'more',      icon:'<line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/>', label:'더보기'},
 ];
-const PAGE_LABELS={dashboard:'보고서',calendar:'달력',patients:'환자 목록',newpatient:'새 환자 등록',editpatient:'환자 수정',ledger:'일계표',happycall:'해피콜',schedule:'직원 근무표',messages:'알림톡',settings:'설정',stats:'통계',ai:'🤖 AI 어시스턴트',clinic:'🏥 진료실'};
+const PAGE_LABELS={dashboard:'보고서',calendar:'달력',patients:'환자 목록',newpatient:'새 환자 등록',editpatient:'환자 수정',ledger:'일계표',happycall:'해피콜·알림톡',schedule:'직원 근무표',settings:'설정',stats:'통계',ai:'🤖 AI 어시스턴트',clinic:'🏥 진료실'};
 const DRAWER_ITEMS=[
   {id:'calendar',  icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>', label:'달력 예약뷰'},
   {id:'newpatient',icon:'<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>', label:'새 환자 등록'},
   {id:'schedule',  icon:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="8" cy="14" r="1" fill="currentColor"/><circle cx="12" cy="14" r="1" fill="currentColor"/><circle cx="16" cy="14" r="1" fill="currentColor"/>', label:'직원 근무표'},
   {id:'stats',     icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>', label:'통계'},
-  {id:'settings', adminOnly:true,  icon:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>', label:'설정'},
 ];
-
-function svgIcon(path,size=20){return`<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${path}</svg>`;}
-
-function renderBottomNav(){
-  const isMoreActive=['calendar','newpatient','editpatient','schedule','messages','settings'].includes(S.page);
-  const tabs=BOTTOM_TABS.map(t=>{
-    const active=(t.id==='more'?isMoreActive:S.page===t.id);
-    return`<button class="bnav-item${active?' active':''}" onclick="${t.id==='more'?'openDrawer()':'nav(\''+t.id+'\')'}">
-      ${svgIcon(t.icon,22)}
-      <span class="bnav-label">${t.label}</span>
-    </button>`;
-  }).join('');
-  return`<nav class="bottom-nav">${tabs}</nav>`;
-}
-
-function renderDrawer(){
-  const nm=S.user.name||'관리자';
-  const isOpen=S.drawerOpen;
-  return`
-  <div class="drawer-overlay${isOpen?' open':''}" onclick="closeDrawer()"></div>
-  <div class="drawer${isOpen?' open':''}">
-    <div style="padding:16px 20px;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between">
-      <div style="display:flex;align-items:center;gap:10px">
-        <div style="width:36px;height:36px;background:#2563eb;border-radius:50%;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px">${nm.slice(0,1)}</div>
-        <div><div style="font-size:14px;font-weight:600">${nm}</div><div style="font-size:11px;color:#6b7280">${S.user.email||''}</div></div>
-      </div>
-      <button onclick="closeDrawer()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#9ca3af">×</button>
-    </div>
-    <div style="padding:10px 0">
-      ${DRAWER_ITEMS.filter(it=>!it.adminOnly||(S.user&&['admin','doctor'].includes(S.user.role))).map(it=>`<button onclick="nav('${it.id}');closeDrawer()" style="width:100%;display:flex;align-items:center;gap:12px;padding:13px 20px;border:none;background:${S.page===it.id?'#eff6ff':'transparent'};color:${S.page===it.id?'#2563eb':'#374151'};font-size:14px;font-family:inherit;cursor:pointer;text-align:left;font-weight:${S.page===it.id?'600':'400'}">
-        ${svgIcon(it.icon,18)}
-        ${it.label}
-      </button>`).join('')}
-    </div>
-    <div style="padding:16px 20px;border-top:1px solid #f3f4f6;margin-top:auto">
-      <button onclick="S.isLoggedIn=false;S.user={name:'',email:'',role:''};try{localStorage.removeItem('doridori__loggedIn');localStorage.removeItem('doridori__user');}catch{};closeDrawer();render()" style="display:flex;align-items:center;gap:8px;color:#ef4444;border:none;background:none;font-size:13px;cursor:pointer;font-family:inherit">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16,17 21,12 16,7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-        로그아웃
-      </button>
-    </div>
-  </div>`;
-}
-
-function renderMobileTopbar(){
-  const label=PAGE_LABELS[S.page]||'';
-  return`<div class="mobile-topbar">
-    <div class="mobile-logo">
-      <div class="mobile-logo-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
-      <span class="mobile-page-title">${label}</span>
-    </div>
-    <div style="display:flex;align-items:center;gap:8px">
-      ${S.sbConnected?'<span style="width:7px;height:7px;background:#22c55e;border-radius:50%;display:inline-block" title="Supabase 연결됨"></span>':''}
-      ${S.page==='ledger'?`<button class="btn" style="padding:5px 10px;font-size:12px" onclick="nav('newpatient')">${svgIcon('<path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/>',14)} 신환</button>`:''}
-    </div>
-  </div>`;
-}
-
-window.openDrawer=()=>{S.drawerOpen=true;render()};
-window.closeDrawer=()=>{S.drawerOpen=false;render()};
 
 function renderSidebar(){
   const items=[
-    {id:'dashboard',icon:I.grid,label:'보고서'},
-    {id:'calendar',icon:I.cal,label:'달력 예약뷰'},
-    {id:'patients',icon:I.users,label:'환자 목록'},
-    {id:'newpatient',icon:I.userPlus,label:'새 환자 등록'},
-    {id:'ledger',icon:I.ledger,label:'일계표'},
-    {id:'happycall',icon:I.phone,label:'해피콜'},
-    {id:'schedule',icon:I.sched,label:'직원 근무표'},
-    {id:'messages',icon:I.msg,label:'알림톡 전송'},
-    {id:'stats',icon:'<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/><line x1="2" y1="20" x2="22" y2="20"/>',label:'통계'},
+    ...DRAWER_ITEMS.slice(0,-0),
     {id:'ai',icon:'<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',label:'AI'},
     {id:'clinic',icon:'<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>',label:'진료실'},
     ...(S.user&&['admin','doctor'].includes(S.user.role)?[{id:'settings',icon:I.set,label:'설정'}]:[]),
   ];
-  const nm=S.user.name||'관리자';
+  const nm=S.user.name||'관리자'.user.name||'관리자';
   return`<div class="sidebar">
     <div class="sidebar-logo">
       <div class="logo-icon"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div>
@@ -2321,7 +2253,7 @@ function renderLedger(){
         <div class="row-acts">
           <button class="ico-btn sv-btn" title="저장" onclick="saveLedger('${d}',getLedger('${d}'));if(_sb&&S.sbConnected){sbSave('ledger').then(()=>showToast('✅ 저장됨')).catch(e=>showToast('⚠️ 저장 실패','err'));}else{showToast('로컬 저장됨');}">${I.save}</button>
           <button class="ico-btn${r.noShow?' active':''}" title="노쇼" style="${r.noShow?'background:#fef2f2;color:#dc2626;border-color:#fca5a5':''}" onclick="togNS('${d}','${r.id}')">${I.warn}</button>
-          ${(r.appointmentDate&&r.patientName)?`<button type="button" onclick="sendApptKakao('${d}','${r.id}')" style="background:#FEE500;border:none;border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer;font-weight:700;color:#3C1E1E;margin-right:3px">💬예약</button>`:''}
+          ${(r.appointmentDate&&r.patientName)?`<button type="button" onclick="sendApptKakao('${d}','${r.id}')" style="background:#FEE500;border:none;border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer;font-weight:700;color:#3C1E1E;margin-right:3px;vertical-align:middle" title="예약 알림톡 발송">💬예약</button>`:''}
           <button class="ico-btn dl-btn" title="삭제" onclick="delLR('${d}','${r.id}')">${I.trash}</button>
         </div>
       </td>
@@ -3139,15 +3071,16 @@ function renderHappyCall(){
         <button class="btn" onclick="hcAddManual('${d}')">${I.plus} 추가</button>
         <button class="btn" onclick="hcDownloadExcel('${d}')">${I.dl}</button>
       </div>
-      <!-- 솔라피 발송 버튼 -->
+      <!-- 카카오 알림톡 발송 버튼 -->
       ${S.solapiKey&&S.solapiSecret&&S.solapiSender?`
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:12px;background:#f0f9ff;border:1px solid #bae6fd;border-radius:10px">
-        <div style="font-size:12px;font-weight:600;color:#0369a1;width:100%;margin-bottom:4px">📱 솔라피 문자 발송</div>
-        <button type="button" class="btn" onclick="sendApptKakaoAll('${d}')" style="background:#FEE500;color:#3C1E1E;border-color:#e6d000;font-weight:700">
-          💬 예약 알림톡 (${getLedger(d).filter(r=>r.appointmentDate&&r.patientName).length}명)
-        </button>
-        <button type="button" class="btn" onclick="sendThanksKakaoFromLedger('${d}')" style="background:#059669;color:#fff;border-color:#059669">
-          💬 방문감사 알림톡 (신환·TA초진 ${getLedger(d).filter(r=>['신환','ta초진'].includes(r.category)&&r.patientName).length}명)
+      <div style="margin-bottom:12px;padding:12px;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px">
+        <div style="font-size:12px;font-weight:600;color:#92400e;margin-bottom:8px">💬 카카오 알림톡 발송</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+          <button type="button" class="btn" onclick="sendApptKakaoAll('${d}')" style="background:#FEE500;color:#3C1E1E;border-color:#e6d000;font-weight:700">
+            💬 예약 알림톡 (${getLedger(d).filter(r=>r.appointmentDate&&r.patientName).length}명)
+          </button>
+          <button type="button" class="btn" onclick="sendThanksKakaoFromLedger('${d}')" style="background:#059669;color:#fff;border-color:#059669">
+            💬 방문감사 알림톡 (신환·TA초진 ${getLedger(d).filter(r=>['신환','ta초진'].includes(r.category)&&r.patientName).length}명)
         </button>
       </div>`:`
       <div style="margin-bottom:12px;padding:10px 14px;background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;font-size:12px;color:#92400e">
@@ -3258,10 +3191,7 @@ function renderHappyCall(){
               </label>
             </td>
             <td><input class="minp" placeholder="메모..." value="${(h.memo||'').replace(/"/g,'&quot;')}" style="min-width:100px;font-size:11px" oninput="hcUpd('${d}','${h.id}','memo',this.value)"></td>
-            <td style="text-align:center;white-space:nowrap">
-              ${h.phone?`<button type="button" onclick="hcSendOne('${d}','${h.id}')" style="background:#FEE500;border:none;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;font-weight:700;color:#3C1E1E;margin-right:3px">💬카톡</button>`:''}
-              <button class="ico-btn dl-btn" onclick="hcDel('${d}','${h.id}')">${I.trash}</button>
-            </td>
+            <td style="text-align:center"><button class="ico-btn dl-btn" onclick="hcDel('${d}','${h.id}')">${I.trash}</button></td>
           </tr>`).join('')}
           </tbody>
         </table></div>`}
@@ -3509,79 +3439,113 @@ window.hcUpd=(d,id,field,val)=>{
   }
 };
 // ── 솔라피 공통 발송 함수 ──────────────────────────────
-// ── 카카오 알림톡 ──
+// ── 카카오 알림톡 ─────────────────────────────────────────
 var KAKAO_TEMPLATES={
   appt2:{templateId:'KA01TP2608040758579734ZONohQ4j7f',text:'🚑 도리도리한의원 예약 안내 🚑\n#{이름}님의 진료 예약 시간은\n#{월}, #{일} #{요일} #{시간} 입니다.\n진료실에서 뵙겠습니다.'},
   appt:{templateId:'KA01TP260804081554624lDcBl9A6D1L',text:'도리도리한의원\n\n#{성함}님 진료예약 안내\n#{요일}#{월}#{일}#{시간}\n예약 확정 안내 드립니다.\n좋은 하루 되세요😁'},
-  thanks:{templateId:'KA01TP260804075411522MK6vNRFoh63',text:'안녕하세요, #{이름} 님 도리도리한의원 입니다.   오늘 진료는 어떠셨나요? 정성 어린 치료가  쾌적한 일상에 도움이 되길 바랍니다.  🚨 치료 및 경과 안내🚨 통증의 급성기(발병 후 초기) 3일 동안은 매일 또는 꾸준히 치료를 받으시는 것이 빠른 회복에 가장 효과적입니다.  ☎ 불편하신 점이 있으면 언제든 채팅이나 전화로 문의해 주세요.  ⏰진료 시간⏰ 월~금 10시~20시 / 토 10시~14시 / 일 13시~18시'}
+  thanks:{templateId:'KA01TP260804075411522MK6vNRFoh63',text:'안녕하세요, #{이름} 님 도리도리한의원 입니다.   오늘 진료는 어떠셨나요? 정성 어린 치료가  쾌적한 일상에 도움이 되길 바랍니다.  🚨 치료 및 경과 안내🚨 통증의 급성기(발병 후 초기) 3일 동안은 매일 또는 꾸준히 치료를 받으시는 것이 빠른 회복에 가장 효과적입니다. 초기 집중 치료가 재발을 막는 핵심입니다.  ☎ 진료 후 불편하신 점이 있거나 궁금한 사항이 생기시면 언제든 채팅이나 전화로 문의해 주세요. 저희가 세심하게 살피겠습니다.  ⏰진료 시간 안내⏰  📢월~금 : 오전 10시~오후 8시    (점심시간: 12:30~2:00) ○토 : 오전 10시~오후 2시    (점심시간 없이 진료) ○일요일: 오후 1시~오후 6시    (점심시간 없이 진료)  🗓 실시간 예약하기 아래 버튼을 클릭하시면 간편하게 다음 내원 예약을 하실 수 있습니다.'}
 };
 var WEEK_DAYS=['일요일','월요일','화요일','수요일','목요일','금요일','토요일'];
-function makeApptVars(name,dateStr,timeStr){
-  var dt=new Date(dateStr+'T00:00:00');
-  var vars={'#{성함}':name,'#{이름}':name,'#{요일}':WEEK_DAYS[dt.getDay()],'#{월}':(dt.getMonth()+1)+'월','#{일}':dt.getDate()+'일','#{시간}':timeStr||''};
-  return vars;
+function makeApptVars(n,d,t){
+  var dt=new Date(d+'T00:00:00');
+  return{'#{성함}':n,'#{이름}':n,'#{요일}':WEEK_DAYS[dt.getDay()],'#{월}':(dt.getMonth()+1)+'월','#{일}':dt.getDate()+'일','#{시간}':t||''};
 }
+
+// 일계표 개별 예약 알림톡
 window.sendApptKakao=async function(d,rowId){
   var r=getLedger(d).find(function(x){return x.id===rowId;});
-  if(!r||!r.appointmentDate||!r.patientName)return showToast('예약 정보 없음','err');
-  if(!S.solapiKey)return showToast('솔라피 설정 필요','err');
+  if(!r)return showToast('행 없음','err');
+  if(!r.appointmentDate)return showToast('예약날짜 없음','err');
+  if(!r.patientName)return showToast('환자명 없음','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender)return showToast('솔라피 설정 필요','err');
   var pt=S.patients.find(function(p){return p.chartNumber===r.chartNumber||(p.name===r.patientName);});
   var phone=pt?pt.phone||'':'';
   if(!phone)return showToast(r.patientName+'님 전화번호 없음','err');
   var vars=makeApptVars(r.patientName,r.appointmentDate,r.appointmentTime||'');
   var useT=KAKAO_TEMPLATES.appt2;
-  var txt=useT.text.replace(/#{이름}/g,r.patientName).replace(/#{월}/g,vars['#{월}']).replace(/#{일}/g,vars['#{일}']).replace(/#{요일}/g,vars['#{요일}']).replace(/#{시간}/g,vars['#{시간}']);
-  if(!confirm(r.patientName+'님 예약 알림톡 발송? '+vars['#{요일}']+' '+vars['#{월}']+vars['#{일}']+' '+vars['#{시간}']+' '+phone))return;
+  var txt=useT.text.replace(/#{이름}/g,r.patientName).replace(/#{요일}/g,vars['#{요일}']).replace(/#{월}/g,vars['#{월}']).replace(/#{일}/g,vars['#{일}']).replace(/#{시간}/g,vars['#{시간}']);
+  if(!confirm(r.patientName+'님 예약 알림톡 발송?\n📅 '+vars['#{요일}']+' '+vars['#{월}']+vars['#{일}']+' '+vars['#{시간}']+'\n📱 '+phone))return;
   showToast('📤 발송 중...');
   var res=await solapiSend(phone,txt,{templateId:useT.templateId,variables:vars});
-  if(res.ok){showToast('✅ '+r.patientName+'님 예약 알림톡 완료!');}
-  else{alert('❌ 실패: '+(res.errorCode||res.reason||JSON.stringify(res.body||{})));}
+  S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:r.patientName,to:phone,type:'예약확인알림톡',text:txt,status:res.ok?'success':'error'});
+  save('messageLogs');if(_sb&&S.sbConnected)sbSave('messageLogs').catch(function(){});
+  if(res.ok){
+    showToast('✅ '+r.patientName+'님 예약 알림톡 발송 완료!');
+    if(_sb&&S.sbConnected)_sb.from('appt_notifications').upsert([{id:'appt:'+r.id,patient_name:r.patientName,phone:phone,appt_date:r.appointmentDate,appt_time:r.appointmentTime||'',ledger_date:d,confirm_sent:true,reminder_sent:false}],{onConflict:'id'}).catch(function(){});
+  }else alert('❌ 발송 실패\n'+(res.reason||JSON.stringify(res.body||{})));
 };
+
+// 일계표 예약자 전체 알림톡
 window.sendApptKakaoAll=async function(d){
+  console.log('[예약알림톡] 시작 d=',d,'solapiKey=',S.solapiKey?'있음':'없음');
   var rows=getLedger(d).filter(function(r){return r.appointmentDate&&r.patientName;});
-  if(!rows.length)return showToast('예약날짜 입력된 환자 없음','err');
-  if(!S.solapiKey)return showToast('솔라피 설정 필요','err');
-  var targets=rows.map(function(r){var pt=S.patients.find(function(p){return p.chartNumber===r.chartNumber;});return{row:r,phone:pt?pt.phone||'':''};}).filter(function(x){return x.phone;});
+  console.log('[예약알림톡] 예약행 수:', rows.length, rows.map(function(r){return r.patientName+' '+r.appointmentDate;}));
+  if(!rows.length)return showToast('예약날짜 입력된 환자가 없습니다','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender)return alert('솔라피 설정 필요 - 설정 페이지에서 API 키를 입력하세요');
+  var targets=rows.map(function(r){
+    var pt=S.patients.find(function(p){return p.chartNumber===r.chartNumber||(p.name===r.patientName);});
+    return{row:r,phone:pt?pt.phone||'':''};
+  }).filter(function(x){return x.phone;});
   if(!targets.length)return showToast('전화번호 있는 예약자 없음','err');
-  if(!confirm(targets.length+'명에게 예약 알림톡 발송?'))return;
+  var preview=targets.map(function(x){var v=makeApptVars(x.row.patientName,x.row.appointmentDate,x.row.appointmentTime||'');return x.row.patientName+' '+v['#{요일}']+' '+v['#{월}']+v['#{일}'];}).join('\n');
+  if(!confirm(targets.length+'명에게 예약 알림톡 발송?\n\n'+preview))return;
+  showToast('📤 '+targets.length+'명 발송 중...');
   var ok=0,fail=0;
   for(var i=0;i<targets.length;i++){
     var x=targets[i];
     var vars=makeApptVars(x.row.patientName,x.row.appointmentDate,x.row.appointmentTime||'');
     var useT=KAKAO_TEMPLATES.appt2;
-    var txt=useT.text.replace(/#{이름}/g,x.row.patientName).replace(/#{월}/g,vars['#{월}']).replace(/#{일}/g,vars['#{일}']).replace(/#{요일}/g,vars['#{요일}']).replace(/#{시간}/g,vars['#{시간}']);
+    var txt=useT.text.replace(/#{이름}/g,x.row.patientName).replace(/#{요일}/g,vars['#{요일}']).replace(/#{월}/g,vars['#{월}']).replace(/#{일}/g,vars['#{일}']).replace(/#{시간}/g,vars['#{시간}']);
     var res=await solapiSend(x.phone,txt,{templateId:useT.templateId,variables:vars});
+    S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:x.row.patientName,to:x.phone,type:'예약확인알림톡',text:txt,status:res.ok?'success':'error'});
     if(res.ok)ok++;else fail++;
   }
+  save('messageLogs');if(_sb&&S.sbConnected)sbSave('messageLogs').catch(function(){});
   showToast('✅ '+ok+'명 완료'+(fail?' / ❌ '+fail+'명 실패':''));
 };
+
+// 일계표 신환/TA초진 방문감사 알림톡
 window.sendThanksKakaoFromLedger=async function(d){
-  var rows=getLedger(d).filter(function(r){return ['신환','ta초진'].includes(r.category)&&r.patientName;});
+  var rows=getLedger(d).filter(function(r){return['신환','ta초진'].includes(r.category)&&r.patientName;});
   if(!rows.length)return showToast('신환/TA초진 없음','err');
-  if(!S.solapiKey)return showToast('솔라피 설정 필요','err');
-  var targets=rows.map(function(r){var pt=S.patients.find(function(p){return p.chartNumber===r.chartNumber;});return{row:r,phone:pt?pt.phone||'':''};}).filter(function(x){return x.phone;});
-  if(!targets.length)return showToast('전화번호 있는 환자 없음','err');
-  if(!confirm(targets.length+'명 방문감사 알림톡 발송?'))return;
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender)return showToast('솔라피 설정 필요','err');
+  var targets=rows.map(function(r){
+    var pt=S.patients.find(function(p){return p.chartNumber===r.chartNumber||(p.name===r.patientName);});
+    return{row:r,phone:pt?pt.phone||'':''};
+  }).filter(function(x){return x.phone;});
+  if(!targets.length)return showToast('전화번호 있는 신환/TA초진 없음','err');
+  var preview=targets.map(function(x){return x.row.patientName+'('+x.row.category+')';}).join(', ');
+  if(!confirm(targets.length+'명에게 방문감사 알림톡 발송?\n\n'+preview))return;
+  showToast('📤 '+targets.length+'명 발송 중...');
   var ok=0,fail=0;
   for(var i=0;i<targets.length;i++){
     var x=targets[i];
     var txt=KAKAO_TEMPLATES.thanks.text.replace(/#{이름}/g,x.row.patientName);
     var res=await solapiSend(x.phone,txt,{templateId:KAKAO_TEMPLATES.thanks.templateId,variables:{'#{이름}':x.row.patientName}});
+    S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:x.row.patientName,to:x.phone,type:'방문감사알림톡',text:txt,status:res.ok?'success':'error'});
     if(res.ok)ok++;else fail++;
   }
+  save('messageLogs');if(_sb&&S.sbConnected)sbSave('messageLogs').catch(function(){});
   showToast('✅ '+ok+'명 완료'+(fail?' / ❌ '+fail+'명 실패':''));
 };
+
+// 해피콜 개별 알림톡
 window.hcSendOne=async function(d,id){
   var h=getHappyCalls(d).find(function(x){return x.id===id;});
-  if(!h||!S.solapiKey)return showToast('설정 확인 필요','err');
+  if(!h)return showToast('환자 없음','err');
+  if(!S.solapiKey||!S.solapiSecret||!S.solapiSender)return showToast('솔라피 설정 필요','err');
   var phone=h.phone||'';
-  if(!phone){var pt=S.patients.find(function(p){return p.chartNumber===h.chartNumber;});if(pt)phone=pt.phone||'';}
-  if(!phone)return showToast('전화번호 없음','err');
-  if(!confirm(h.patientName+'님 방문감사 알림톡? '+phone))return;
-  var txt=KAKAO_TEMPLATES.thanks.text.replace(/#{이름}/g,h.patientName);
-  var res=await solapiSend(phone,txt,{templateId:KAKAO_TEMPLATES.thanks.templateId,variables:{'#{이름}':h.patientName}});
-  if(res.ok)showToast('✅ '+h.patientName+'님 알림톡 완료!');
-  else alert('❌ 실패: '+(res.errorCode||res.reason||''));
+  if(!phone){var pt2=S.patients.find(function(p){return p.chartNumber===h.chartNumber||(p.name===h.patientName);});if(pt2)phone=pt2.phone||'';}
+  if(!phone)return showToast(h.patientName+'님 전화번호 없음','err');
+  var name=h.patientName||'환자';
+  if(!confirm(name+'님 방문감사 알림톡 발송?\n📱 '+phone))return;
+  showToast('📤 발송 중...');
+  var txt=KAKAO_TEMPLATES.thanks.text.replace(/#{이름}/g,name);
+  var res=await solapiSend(phone,txt,{templateId:KAKAO_TEMPLATES.thanks.templateId,variables:{'#{이름}':name}});
+  S.messageLogs.unshift({id:uid(),createdAt:new Date().toLocaleString('ko-KR'),patientName:name,to:phone,type:'방문감사알림톡',text:txt,status:res.ok?'success':'error'});
+  save('messageLogs');if(_sb&&S.sbConnected)sbSave('messageLogs').catch(function(){});
+  if(res.ok)showToast('✅ '+name+'님 알림톡 발송 완료!');
+  else alert('❌ 발송 실패\n'+(res.reason||JSON.stringify(res.body||{})));
 };
 
 async function solapiSend(to, text, kakaoOpts){
@@ -3613,12 +3577,12 @@ async function solapiSend(to, text, kakaoOpts){
       },
       body:JSON.stringify({
         message:(function(){
-          var m={to:toNum,from:fromNum,text:text};
+          var msg={to:toNum,from:fromNum,text:text};
           if(kakaoOpts&&kakaoOpts.templateId){
-            m.kakaoOptions={pfId:'KA01PF260305032117770jA1Uua0XqgY',templateId:kakaoOpts.templateId,variables:kakaoOpts.variables||{},disableSms:false};
-            m.type='ATA';
+            msg.kakaoOptions={pfId:'KA01PF260305032117770jA1Uua0XqgY',templateId:kakaoOpts.templateId,variables:kakaoOpts.variables||{},disableSms:false};
+            msg.type='ATA';
           }
-          return m;
+          return msg;
         })()
       })
     });
@@ -4825,453 +4789,431 @@ window.clearAllData=()=>{
 };
 
 
-// ── 진료실 ──────────────────────────────────────────────
-var VAS_LABELS=['통증 없음','매우 약한 통증','약한 통증','약간 불편함','다소 심한 통증','중등도 통증','심한 통증','매우 심한 통증','극심한 통증','참기 어려운 통증','최악의 통증'];
-var VAS_COLORS=['#28a745','#5cb85c','#8bc34a','#cddc39','#ffeb3b','#ffc107','#ff9800','#ff5722','#f44336','#e91e63','#9c27b0'];
-var VAS_BADGES=[['없음','#d4edda','#155724'],['경미','#d4edda','#155724'],['경미','#d4edda','#155724'],['경증','#d4edda','#155724'],['경증','#fff3cd','#856404'],['중등도','#fff3cd','#856404'],['중등도','#fff3cd','#856404'],['중증','#f8d7da','#721c24'],['중증','#f8d7da','#721c24'],['극심','#f8d7da','#721c24'],['극심','#f8d7da','#721c24']];
-
+// ── 진료실 ────────────────────────────────────────────────
 function renderClinic(){
-  var cv=S.clinicVas||5;
-  var cb=VAS_BADGES[cv];
-  var sel=S.clinicSelectedPts||[];
-  var sv=S.clinicPtSearchVal||'';
-  var sr=sv.length>=1?searchPt(sv).slice(0,10):[];
-
+  // 렌더 후 검색 input 값 복원
   setTimeout(function(){
-    var inp=document.getElementById('clinic-pt-inp');
-    if(inp){inp.value=sv;if(sv&&document.activeElement===inp&&sr.length){var box=document.getElementById('clinic-ac');if(box)box.style.display='block';}}
+    var inp=document.getElementById('clinic-pt-search-inp');
+    if(inp&&!S.clinicPatientId){
+      inp.value=S.clinicPtSearchVal||'';
+      if(S.clinicPtSearchVal){
+        updateClinicPtSearch(S.clinicPtSearchVal);
+      }
+    }
   },0);
+  var vasLabels=['통증 없음','매우 약한 통증','약한 통증','약간 불편함','다소 심한 통증','중등도 통증','심한 통증','매우 심한 통증','극심한 통증','참기 어려운 통증','최악의 통증'];
+  var vasColors=['#28a745','#5cb85c','#8bc34a','#cddc39','#ffeb3b','#ffc107','#ff9800','#ff5722','#f44336','#e91e63','#9c27b0'];
+  var vasBadges=[['없음','#d4edda','#155724'],['경미','#d4edda','#155724'],['경미','#d4edda','#155724'],['경증','#d4edda','#155724'],['경증','#fff3cd','#856404'],['중등도','#fff3cd','#856404'],['중등도','#fff3cd','#856404'],['중증','#f8d7da','#721c24'],['중증','#f8d7da','#721c24'],['극심','#f8d7da','#721c24'],['극심','#f8d7da','#721c24']];
+  var cv=S.clinicVas||5;
+  var cb=vasBadges[cv];
+  var curPt=S.clinicPatientId?S.patients.find(function(p){return p.id===S.clinicPatientId;}):null;
+  var searchVal=S.clinicPtSearchVal||'';
+  var searchResults=searchVal.length>=1?searchPt(searchVal):[];
 
   return '<div class="content">'
     +'<div class="page-title">🏥 진료실</div>'
 
-    // ── 수신자 선택 ──
+    // 환자 선택 - 스크린샷 스타일
     +'<div class="section-card" style="margin-bottom:14px">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
-    +'<div class="section-title" style="font-size:16px">수신자 선택</div>'
-    +(sel.length>0?'<span style="background:#2563eb;color:#fff;font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px">'+sel.length+'명</span>':'<span style="width:8px;height:3px;background:#d1d5db;border-radius:2px;display:inline-block"></span>')
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">'
+    +'<div class="section-title">수신자 선택</div>'
+    +(S.clinicSelectedPts&&S.clinicSelectedPts.length>0?'<span style="background:#2563eb;color:#fff;font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px">'+S.clinicSelectedPts.length+'명</span>':'')
     +'</div>'
-    // 검색창
-    +'<input id="clinic-pt-inp" class="form-inp" style="font-size:15px;padding:12px 16px;border-radius:10px;border:1.5px solid '+(sv?'#2563eb':'#e5e7eb')+'" placeholder="이름 또는 차트번호..." autocomplete="off" value="'+sv+'" oninput="clinicPtSearch(this.value)" onblur="setTimeout(function(){var b=document.getElementById(\'clinic-ac\');if(b)b.style.display=\'none\';},200)">'
-    // 검색 결과 목록
-    +(sr.length>0&&sv
-      ? '<div id="clinic-ac" style="margin-top:8px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">'
-        +sr.map(function(p){
-          var isSel=sel.some(function(x){return x.id===p.id;});
-          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;border-bottom:1px solid #f3f4f6;background:'+(isSel?'#f0f9ff':'#fff')+'" data-id="'+p.id+'" onmousedown="clinicTogglePt(this.dataset.id)">'
+    // 검색 input
+    +'<input id="clinic-pt-search-inp" class="form-inp" style="font-size:14px;padding:10px 14px;margin-bottom:8px" placeholder="이름 또는 차트번호..." autocomplete="off" autocorrect="off" spellcheck="false" value="'+searchVal+'" oninput="updateClinicPtSearch(this.value)" onblur="setTimeout(function(){var b=document.getElementById(\'clinic-ac-list\');if(b)b.style.display=\'none\';},200)">'
+    // 검색 결과 (드롭다운)
+    +'<div id="clinic-ac-list-wrap" style="position:relative">'
+    +'<div id="clinic-ac-list" style="display:'+(searchResults.length>0&&searchVal?'block':'none')+';background:#fff;border:1px solid #e5e7eb;border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.1);max-height:220px;overflow-y:auto;margin-bottom:8px">'
+    +(searchResults.length>0&&searchVal
+      ? searchResults.map(function(p){
+          var sel=S.clinicSelectedPts&&S.clinicSelectedPts.some(function(x){return x.id===p.id;});
+          return '<div style="padding:12px 16px;cursor:pointer;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;background:'+(sel?'#eff6ff':'#fff')+'" data-ptid="'+p.id+'" onmousedown="clinicTogglePt(this.dataset.id)">'
             +'<div>'
-            +'<div style="font-weight:700;font-size:15px;color:#111827">'+p.name+'</div>'
-            +'<div style="font-size:13px;color:#9ca3af;margin-top:2px">차트 '+p.chartNumber+' ｜ '+(p.phone||'번호없음')+'</div>'
+            +'<div style="font-weight:600;font-size:14px;color:#111827">'+p.name+'</div>'
+            +'<div style="font-size:12px;color:#9ca3af;margin-top:2px">'+p.chartNumber+' · '+(p.phone||'번호없음')+'</div>'
             +'</div>'
-            +'<div style="width:22px;height:22px;border-radius:50%;border:2px solid '+(isSel?'#2563eb':'#d1d5db')+';display:flex;align-items:center;justify-content:center;flex-shrink:0">'
-            +(isSel?'<div style="width:12px;height:12px;border-radius:50%;background:#2563eb"></div>':'')
-            +'</div>'
+            +(sel?'<div style="width:26px;height:26px;background:#22c55e;border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>':'')
             +'</div>';
         }).join('')
-        +'</div>'
-      : '<div id="clinic-ac" style="display:none"></div>'
+      : ''
     )
-    // 선택된 환자
-    +(sel.length>0
-      ? '<div style="margin-top:10px;border:1px solid #bfdbfe;border-radius:10px;overflow:hidden;background:#eff6ff">'
-        +sel.map(function(p,i){
-          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;'+(i>0?'border-top:1px solid #bfdbfe':'')+'">'
-            +'<div>'
-            +'<div style="font-weight:700;font-size:15px;color:#1d4ed8">'+p.name+'</div>'
-            +'<div style="font-size:12px;color:#3b82f6;margin-top:2px">차트 '+p.chartNumber+'  '+( p.phone||'')+'</div>'
+    +'</div>'
+    +'</div>'
+    // 선택된 환자 목록
+    +(S.clinicSelectedPts&&S.clinicSelectedPts.length>0
+      ? '<div style="background:#f0fdf4;border:1px solid #86efac;border-radius:10px;padding:12px 16px">'
+        +'<div style="font-size:12px;font-weight:600;color:#16a34a;margin-bottom:8px">🙋 발송 대상 '+S.clinicSelectedPts.length+'명</div>'
+        +S.clinicSelectedPts.map(function(p){
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(134,239,172,.4)">'
+            +'<span style="font-weight:600;font-size:14px;color:#111827">'+p.name+'</span>'
+            +'<div style="display:flex;align-items:center;gap:12px">'
+            +'<span style="font-size:13px;color:#6b7280">'+(p.phone||'번호없음')+'</span>'
+            +'<button type="button" data-rmid="'+p.id+'" onclick="clinicRemovePt(this.dataset.rmid)" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:18px;line-height:1;padding:0">×</button>'
             +'</div>'
-            +'<button data-rid="'+p.id+'" onmousedown="clinicRemovePt(this.dataset.rid)" style="border:none;background:rgba(59,130,246,.1);color:#2563eb;cursor:pointer;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">변경</button>'
             +'</div>';
         }).join('')
         +'</div>'
       : ''
     )
     +'</div>'
-
-    // ── VAS ──
+    
+        // VAS
     +'<div class="section-card" style="margin-bottom:14px">'
     +'<div class="section-title" style="margin-bottom:12px">VAS 통증 척도</div>'
-    +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
+    +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">'
     +'<span style="font-size:11px;color:#9ca3af;min-width:28px;text-align:center;line-height:1.4">0<br>무통</span>'
-    +'<input type="range" id="vas-slider" min="0" max="10" value="'+cv+'" step="1" style="flex:1" oninput="clinicUpdateVAS(this.value)">'
+    +'<div style="flex:1">'
+    +'<input type="range" id="vas-slider" min="0" max="10" value="'+cv+'" step="1" style="width:100%" oninput="clinicUpdateVAS(this.value)">'
+    +'<div style="display:flex;justify-content:space-between;margin-top:2px;padding:0 2px">'
+    +[1,2,3,4,5,6,7,8,9].map(function(n){return '<span style="font-size:10px;color:#d1d5db">'+n+'</span>';}).join('')
+    +'</div>'
+    +'</div>'
     +'<span style="font-size:11px;color:#9ca3af;min-width:28px;text-align:center;line-height:1.4">10<br>극심</span>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:12px">'
-    +'<span id="vas-num" style="font-size:36px;font-weight:700;color:'+VAS_COLORS[cv]+'">'+cv+'</span>'
-    +'<div><div id="vas-lbl" style="font-size:14px;color:#374151;margin-bottom:4px">'+VAS_LABELS[cv]+'</div>'
-    +'<span id="vas-badge" style="font-size:12px;padding:3px 12px;border-radius:20px;font-weight:600;background:'+cb[1]+';color:'+cb[2]+'">'+cb[0]+'</span>'
+    +'<span id="vas-num" style="font-size:32px;font-weight:700;color:'+vasColors[cv]+'">'+cv+'</span>'
+    +'<div><div id="vas-lbl" style="font-size:13px;color:#374151;margin-bottom:4px">'+vasLabels[cv]+'</div>'
+    +'<span id="vas-badge" style="font-size:11px;padding:2px 10px;border-radius:20px;background:'+cb[1]+';color:'+cb[2]+'">'+cb[0]+'</span>'
     +'</div></div>'
     +'</div>'
 
-    // ── 음성 입력 ──
+    // 음성 입력
     +'<div class="section-card" style="margin-bottom:14px">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
     +'<div class="section-title">음성 입력</div>'
-    +'<span id="clinic-rec-st" style="font-size:12px;color:#9ca3af;display:flex;align-items:center;gap:5px"><span id="clinic-rec-dot" style="width:8px;height:8px;border-radius:50%;background:#d1d5db;display:inline-block"></span>대기</span>'
+    +'<span id="clinic-rec-status" style="font-size:11px;color:#9ca3af;display:flex;align-items:center;gap:4px"><span id="clinic-rec-dot" style="width:7px;height:7px;border-radius:50%;background:#d1d5db;display:inline-block"></span>대기</span>'
     +'</div>'
-    +'<div id="clinic-transcript" style="min-height:80px;font-size:14px;line-height:1.7;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:12px;color:#374151"><span style="color:#9ca3af">🎙 녹음 버튼을 눌러 원장님 발언을 입력하세요<br><br>예: "경추 3-5번 압통 있고, ROM 제한, 침이랑 추나 하고 3일 뒤 오세요"</span></div>'
+    +'<div id="clinic-transcript" style="min-height:70px;font-size:13px;line-height:1.7;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px;color:#374151"><span style="color:#9ca3af">녹음 버튼을 눌러 말씀하세요...<br>예시: "경추 3-5번 압통 있고, ROM 제한, 침이랑 추나 하고 3일 뒤 오세요"</span></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +'<button type="button" id="clinic-rec-btn" onclick="clinicToggleRec()" class="btn btn-primary" style="min-width:110px">🎙 녹음 시작</button>'
-    +'<button type="button" onclick="clinicUseSample()" class="btn">▶ 예시</button>'
-    +'<button type="button" onclick="clinicClearAll()" class="btn" style="color:#6b7280;margin-left:auto">초기화</button>'
+    +'<button type="button" id="clinic-rec-btn" onclick="clinicToggleRec()" class="btn">🎙 녹음 시작</button>'
+    +'<button type="button" onclick="clinicUseSample()" class="btn">▶ 예시 테스트</button>'
+    +'<button type="button" onclick="clinicClearAll()" class="btn" style="color:#6b7280">초기화</button>'
     +'</div>'
     +'</div>'
 
-    // ── SOAP ──
-    +'<div id="clinic-soap-sec" style="display:none">'
+    // SOAP
+    +'<div id="clinic-soap-section" style="display:none">'
+    +(S.geminiKey?''
+      :'<div style="background:#fff3cd;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:10px;font-size:12px;color:#856404">⚠️ Gemini AI 미연결 — 설정 페이지에서 Gemini API 키를 입력하면 AI가 자동으로 SOAP을 작성합니다. 지금은 데모 데이터로 표시됩니다.</div>'
+    )
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-    +'<div class="section-title">SOAP 차트'
-    +(S.geminiKey
-      ?'<span style="font-size:11px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:20px;margin-left:6px">✅ AI 연결됨</span>'
-      :'<span style="font-size:11px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:20px;margin-left:6px">⚠️ 데모</span>')
+    +'<div class="section-title">SOAP 차트 <span style="font-size:11px;background:'+(S.geminiKey?'#d1fae5':'#fee2e2')+';color:'+(S.geminiKey?'#065f46':'#991b1b')+';padding:2px 8px;border-radius:20px;margin-left:6px;font-weight:500">'+(S.geminiKey?'✅ Gemini 연결됨':'⚠️ 데모 모드')+'</span></div>'
+    +'<div style="display:flex;gap:6px;align-items:center">'
+    +'<span id="clinic-loading" style="font-size:11px;color:#9ca3af"></span>'
+    +'<button type="button" onclick="clinicCopyAll()" class="btn btn-sm">📋 전체 복사</button>'
     +'</div>'
-    +'<div style="display:flex;gap:6px">'
-    +'<span id="clinic-loading" style="font-size:11px;color:#9ca3af;align-self:center"></span>'
-    +'<button type="button" onclick="clinicCopyAll()" class="btn btn-sm btn-primary">📋 전체 복사</button>'
-    +'</div></div>'
+    +'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
-    +[['s','S — 주소증','#2563eb'],['o','O — 객관적 소견','#16a34a'],['a','A — 진단','#d97706'],['p','P — 치료 계획','#dc2626']].map(function(item){
+    +[['s','S — SUBJECTIVE','주소증','#2563eb'],['o','O — OBJECTIVE','객관적 소견','#16a34a'],['a','A — ASSESSMENT','진단','#d97706'],['p','P — PLAN','치료 계획','#dc2626']].map(function(item){
       return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-        +'<span style="font-size:11px;font-weight:700;color:'+item[2]+'">'+item[1]+'</span>'
-        +'<button data-fid="clinic-soap-'+item[0]+'" onmousedown="clinicCopyField(this.dataset.fid)" style="border:none;background:none;cursor:pointer;color:#9ca3af;font-size:16px;padding:0" title="복사">⎘</button>'
+        +'<span style="font-size:11px;font-weight:600;color:'+item[3]+';letter-spacing:.02em">'+item[1]+'</span>'
+        +'<button type="button" onclick="clinicCopyField(\'clinic-soap-'+item[0]+'\')" style="border:none;background:none;cursor:pointer;color:#9ca3af;font-size:16px;padding:0;line-height:1" title="복사">⎘</button>'
         +'</div>'
-        +'<textarea id="clinic-soap-'+item[0]+'" rows="3" style="width:100%;border:none;background:transparent;font-size:13px;color:#111827;line-height:1.7;resize:vertical;font-family:inherit;outline:none" placeholder="'+item[1].split(' — ')[1]+'..."></textarea>'
+        +'<textarea id="clinic-soap-'+item[0]+'" rows="3" style="width:100%;border:none;background:transparent;font-size:13px;color:#111827;line-height:1.7;resize:vertical;font-family:inherit;outline:none" placeholder="'+item[2]+'..."></textarea>'
         +'</div>';
     }).join('')
     +'</div>'
-    +'<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:14px">'
+
+    // 다음 예약
+    +'<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:12px">'
     +'<div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:8px">📅 다음 예약</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +'<input id="clinic-next" class="form-inp" style="flex:1;min-width:150px" placeholder="예: 3일 후, 8월 22일 오후 2시">'
-    +'<select id="clinic-treat" class="form-inp" style="max-width:160px"><option>침+약침+추나</option><option>침+약침</option><option>침+추나</option><option>침치료</option></select>'
-    +'</div></div>'
-    // 복사 안내
-    +'<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e">'
-    +'💡 <b>📋 전체 복사</b> 버튼 → 일계표 해당 환자 <b>메모</b> 칸에 붙여넣기 하세요'
+    +'<input id="clinic-next-appt" class="form-inp" style="flex:1;min-width:150px" placeholder="예: 3일 후, 8월 22일 오후 2시">'
+    +'<select id="clinic-next-treat" class="form-inp" style="max-width:130px"><option>침 + 추나</option><option>침</option><option>추나</option><option>약침</option></select>'
     +'</div>'
+    +'</div>'
+
+    // 저장 전 미리보기
+    +'<div id="clinic-preview-section" style="display:none;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:12px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<span style="font-size:13px;font-weight:600;color:#374151">📄 저장 미리보기</span>'
+    +'<button type="button" onclick="document.getElementById(\'clinic-preview-section\').style.display=\'none\'" style="border:none;background:none;cursor:pointer;color:#9ca3af;font-size:18px;padding:0">×</button>'
+    +'</div>'
+    +'<pre id="clinic-preview-text" style="font-size:12px;color:#374151;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin:0;font-family:inherit"></pre>'
+    +'<div style="margin-top:10px;padding:8px 10px;background:#eff6ff;border-radius:6px;font-size:11px;color:#2563eb">'
+    +'💾 저장 위치: Supabase <b>clinic_charts</b> 테이블 + 일계표 해당 환자 <b>메모</b> 칸'
+    +'</div>'
+    +'</div>'
+
+    +'<div id="clinic-err" style="font-size:12px;color:#dc2626;margin-bottom:8px;display:none">내용을 입력해주세요.</div>'
     +'<div style="display:flex;gap:8px">'
     +'<button type="button" onclick="clinicPreview()" class="btn" style="padding:10px 16px">👁 미리보기</button>'
-    +'<button type="button" onclick="clinicSaveChart()" class="btn btn-primary" style="flex:1;padding:10px;font-size:14px">💾 저장</button>'
+    +'<button type="button" onclick="clinicSaveChart()" class="btn btn-primary" style="flex:1;padding:10px;font-size:14px">💾 차트 저장</button>'
     +'<button type="button" onclick="clinicRegenerate()" class="btn" style="padding:10px 14px" title="재생성">🔄</button>'
-    +'</div></div>'
-
-    // 미리보기
-    +'<div id="clinic-preview-sec" style="display:none;margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-    +'<span style="font-size:14px;font-weight:600;color:#374151">📄 저장 내용 미리보기</span>'
-    +'<div style="display:flex;gap:8px">'
-    +'<button onclick="clinicCopyAll()" class="btn btn-sm">📋 복사</button>'
-    +'<button onmousedown="document.getElementById(\'clinic-preview-sec\').style.display=\'none\'" style="border:none;background:none;cursor:pointer;color:#9ca3af;font-size:20px;padding:0">×</button>'
-    +'</div></div>'
-    +'<pre id="clinic-preview-txt" style="font-size:13px;color:#374151;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin:0;font-family:inherit;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px"></pre>'
     +'</div>'
+    +'</div>'
+
     +'<div id="clinic-saved" style="display:none;margin-top:12px;padding:14px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;font-size:13px;color:#16a34a"></div>'
-    // 과거 차트 목록
-    +(sel.length>0
-      ? '<div id="clinic-history-sec" style="margin-top:16px">'
-        +'<div style="font-size:14px;font-weight:600;color:#374151;margin-bottom:10px">📋 '+sel[0].name+'님 과거 진료 기록</div>'
-        +'<div id="clinic-history-list" style="font-size:13px;color:#9ca3af;text-align:center;padding:16px">불러오는 중...</div>'
-        +'</div>'
-      : ''
-    )
     +'</div>';
 }
+// ── 진료실 함수들 ──────────────────────────────────────────
+var VAS_LABELS=['통증 없음','매우 약한 통증','약한 통증','약간 불편함','다소 심한 통증','중등도 통증','심한 통증','매우 심한 통증','극심한 통증','참기 어려운 통증','최악의 통증'];
+var VAS_COLORS=['#28a745','#5cb85c','#8bc34a','#cddc39','#ffeb3b','#ffc107','#ff9800','#ff5722','#f44336','#e91e63','#9c27b0'];
+var VAS_BADGES=[['없음','#d4edda','#155724'],['경미','#d4edda','#155724'],['경미','#d4edda','#155724'],['경증','#d4edda','#155724'],['경증','#fff3cd','#856404'],['중등도','#fff3cd','#856404'],['중등도','#fff3cd','#856404'],['중증','#f8d7da','#721c24'],['중증','#f8d7da','#721c24'],['극심','#f8d7da','#721c24'],['극심','#f8d7da','#721c24']];
 
-window.clinicPtSearch=function(val){
+window.clinicUpdateVAS=function(v){
+  v=parseInt(v);S.clinicVas=v;
+  var num=document.getElementById('vas-num');if(num){num.textContent=v;num.style.color=VAS_COLORS[v];}
+  var lbl=document.getElementById('vas-lbl');if(lbl)lbl.textContent=VAS_LABELS[v];
+  var badge=document.getElementById('vas-badge');
+  if(badge){badge.textContent=VAS_BADGES[v][0];badge.style.background=VAS_BADGES[v][1];badge.style.color=VAS_BADGES[v][2];}
+};
+
+window.updateClinicPtSearch=function(val){
   S.clinicPtSearchVal=val;
-  var box=document.getElementById('clinic-ac');
-  if(!box)return;
-  if(!val.trim()){box.style.display='none';return;}
+  var acList=document.getElementById('clinic-ac-list');
+  if(!acList) return;
+  if(!val||!val.trim()){acList.style.display='none';return;}
   var results=searchPt(val).slice(0,10);
-  var sel=S.clinicSelectedPts||[];
-  if(!results.length){box.innerHTML='<div style="padding:10px;text-align:center;font-size:12px;color:#9ca3af">검색 결과 없음</div>';box.style.display='block';return;}
-  box.innerHTML=results.map(function(p){
-    var isSel=sel.some(function(x){return x.id===p.id;});
-    return '<div style="padding:11px 16px;cursor:pointer;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;background:'+(isSel?'#eff6ff':'#fff')+'" data-id="'+p.id+'" onmousedown="clinicTogglePt(this.dataset.id)">'
-      +'<div><div style="font-weight:600;font-size:14px">'+p.name+'</div>'
-      +'<div style="font-size:12px;color:#9ca3af">'+p.chartNumber+' · '+(p.phone||'번호없음')+'</div></div>'
-      +(isSel?'<div style="width:24px;height:24px;background:#22c55e;border-radius:5px;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>':'')
+  if(!results.length){
+    acList.innerHTML='<div style="padding:12px;text-align:center;font-size:13px;color:#9ca3af">검색 결과 없음</div>';
+    acList.style.display='block';return;
+  }
+  acList.innerHTML=results.map(function(p){
+    return '<div style="padding:11px 16px;cursor:pointer;border-bottom:1px solid #f3f4f6;display:flex;justify-content:space-between;align-items:center" onmousedown="clinicSelectPt(this.dataset.id)" data-id="'+p.id+'">'
+      +'<div><span style="font-weight:600;font-size:14px;color:#111827">'+p.name+'</span>'
+      +'<span style="color:#6b7280;font-size:12px;margin-left:8px">차트 '+p.chartNumber+'</span></div>'
+      +'<span style="color:#9ca3af;font-size:12px">'+(p.phone||'번호없음')+'</span>'
       +'</div>';
   }).join('');
-  box.style.display='block';
+  acList.style.display='block';
 };
+
+var _clinicRec=null,_clinicRecOn=false,_clinicText='';
+
 window.clinicTogglePt=function(ptId){
   if(!S.clinicSelectedPts)S.clinicSelectedPts=[];
   var pt=S.patients.find(function(p){return p.id===ptId;});
   if(!pt)return;
   var idx=S.clinicSelectedPts.findIndex(function(x){return x.id===ptId;});
-  if(idx>=0)S.clinicSelectedPts.splice(idx,1);
-  else S.clinicSelectedPts.push({id:pt.id,name:pt.name,phone:pt.phone||'',chartNumber:pt.chartNumber});
+  if(idx>=0){S.clinicSelectedPts.splice(idx,1);}
+  else{S.clinicSelectedPts.push({id:pt.id,name:pt.name,phone:pt.phone||'',chartNumber:pt.chartNumber});}
   S.clinicPatientId=S.clinicSelectedPts.length>0?S.clinicSelectedPts[0].id:null;
   render();
-  setTimeout(function(){
-    var inp=document.getElementById('clinic-pt-inp');
-    if(inp){inp.focus();inp.value=S.clinicPtSearchVal||'';}
-    // 과거 차트 로드
-    if(S.clinicSelectedPts&&S.clinicSelectedPts.length>0){
-      clinicLoadHistory(S.clinicSelectedPts[0].id, S.clinicSelectedPts[0].name);
-    }
-  },10);
+  setTimeout(function(){var inp=document.getElementById('clinic-pt-search-inp');if(inp){inp.focus();inp.setSelectionRange((inp.value||'').length,(inp.value||'').length);}},10);
 };
+
 window.clinicRemovePt=function(ptId){
   if(!S.clinicSelectedPts)return;
   S.clinicSelectedPts=S.clinicSelectedPts.filter(function(x){return x.id!==ptId;});
   S.clinicPatientId=S.clinicSelectedPts.length>0?S.clinicSelectedPts[0].id:null;
   render();
 };
-window.clinicUpdateVAS=function(v){
-  v=parseInt(v);S.clinicVas=v;
-  var n=document.getElementById('vas-num');if(n){n.textContent=v;n.style.color=VAS_COLORS[v];}
-  var l=document.getElementById('vas-lbl');if(l)l.textContent=VAS_LABELS[v];
-  var b=document.getElementById('vas-badge');
-  if(b){b.textContent=VAS_BADGES[v][0];b.style.background=VAS_BADGES[v][1];b.style.color=VAS_BADGES[v][2];}
-};
-var _clinicRec=null,_clinicRecOn=false,_clinicTxt='';
+
 window.clinicToggleRec=function(){if(_clinicRecOn)clinicStopRec();else clinicStartRec();};
+
 window.clinicStartRec=function(){
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  if(!SR){alert('크롬에서 사용해주세요');return;}
+  if(!SR){alert('크롬(Chrome) 브라우저에서 사용해주세요.');return;}
   _clinicRec=new SR();_clinicRec.lang='ko-KR';_clinicRec.continuous=true;_clinicRec.interimResults=true;
-  _clinicRec.onstart=function(){_clinicRecOn=true;var btn=document.getElementById('clinic-rec-btn');if(btn)btn.textContent='⏹ 녹음 중지';var dot=document.getElementById('clinic-rec-dot');if(dot)dot.style.background='#ef4444';var box=document.getElementById('clinic-transcript');if(box)box.innerHTML='<span style="color:#9ca3af">말씀하세요...</span>';};
-  _clinicRec.onresult=function(e){var interim='',final='';for(var i=e.resultIndex;i<e.results.length;i++){if(e.results[i].isFinal)final+=e.results[i][0].transcript;else interim+=e.results[i][0].transcript;}_clinicTxt+=final;var box=document.getElementById('clinic-transcript');if(box)box.innerHTML='<span>'+_clinicTxt+'</span><span style="color:#9ca3af">'+interim+'</span>';};
-  _clinicRec.onerror=function(e){clinicStopRec();if(e.error==='not-allowed')alert('마이크 권한 허용 필요');};
+  _clinicRec.onstart=function(){
+    _clinicRecOn=true;
+    var btn=document.getElementById('clinic-rec-btn');if(btn)btn.textContent='⏹ 녹음 중지';
+    var dot=document.getElementById('clinic-rec-dot');if(dot)dot.style.background='#ef4444';
+    var box=document.getElementById('clinic-transcript');if(box)box.innerHTML='<span style="color:#9ca3af">말씀하세요...</span>';
+  };
+  _clinicRec.onresult=function(e){
+    var interim='',final='';
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal)final+=e.results[i][0].transcript;
+      else interim+=e.results[i][0].transcript;
+    }
+    _clinicText+=final;
+    var box=document.getElementById('clinic-transcript');
+    if(box)box.innerHTML='<span>'+_clinicText+'</span><span style="color:#9ca3af">'+interim+'</span>';
+  };
+  _clinicRec.onerror=function(e){clinicStopRec();if(e.error==='not-allowed')alert('마이크 권한을 허용해주세요.');};
   _clinicRec.onend=function(){if(_clinicRecOn)_clinicRec.start();};
   _clinicRec.start();
 };
+
 window.clinicStopRec=function(){
   _clinicRecOn=false;if(_clinicRec)_clinicRec.stop();
   var btn=document.getElementById('clinic-rec-btn');if(btn)btn.textContent='🎙 녹음 시작';
   var dot=document.getElementById('clinic-rec-dot');if(dot)dot.style.background='#d1d5db';
-  if(_clinicTxt.trim())clinicGenerateSOAP(_clinicTxt);
+  if(_clinicText.trim())clinicGenerateSOAP(_clinicText);
 };
+
 window.clinicUseSample=function(){
-  _clinicTxt='경추 3-5번 압통 있고 ROM 좀 제한되고 침이랑 추나 하고 3일 뒤 오세요';
-  var box=document.getElementById('clinic-transcript');if(box)box.textContent=_clinicTxt;
-  clinicGenerateSOAP(_clinicTxt);
+  _clinicText='경추 3-5번 압통 있고 ROM 좀 제한되고 침이랑 추나 하고 3일 뒤 오세요';
+  var box=document.getElementById('clinic-transcript');if(box)box.textContent=_clinicText;
+  clinicGenerateSOAP(_clinicText);
 };
+
 window.clinicGenerateSOAP=function(text){
-  var sec=document.getElementById('clinic-soap-sec');if(sec)sec.style.display='block';
+  var soapSec=document.getElementById('clinic-soap-section');if(soapSec)soapSec.style.display='block';
   var loading=document.getElementById('clinic-loading');if(loading)loading.textContent='AI 분석 중...';
   ['s','o','a','p'].forEach(function(k){var el=document.getElementById('clinic-soap-'+k);if(el)el.value='';});
-  var na=document.getElementById('clinic-next');if(na)na.value='';
+  var na=document.getElementById('clinic-next-appt');if(na)na.value='';
   var saved=document.getElementById('clinic-saved');if(saved)saved.style.display='none';
   var vas=S.clinicVas||5;
-  if(!S.geminiKey){clinicSimSOAP(text,vas);return;}
-  var prompt='당신은 한의원 차트 작성 AI입니다. 아래 발언을 SOAP 형식으로 정리하세요.\n\n[발언 내용]\n'+text+'\n\n[VAS 통증 점수] '+vas+'/10\n\n반드시 아래 JSON 형식으로만 출력하세요 (다른 텍스트, 마크다운 절대 금지):\n{"S":"주소증(환자 호소 증상을 한국어로)","O":"객관적소견(검사소견, VAS '+vas+'/10 포함)","A":"진단명","P":"치료계획","next_appt":"다음예약일정"}\n\n발언 내용을 그대로 반영해서 실제 내용으로 작성하세요.';
-  var MODELS=[
-    {name:'gemini-3.5-flash',ver:'v1beta'},
-    {name:'gemini-3.1-flash-lite',ver:'v1beta'},
-    {name:'gemini-3.5-flash-lite',ver:'v1beta'},
-    {name:'gemini-2.5-flash-lite-preview-06-17',ver:'v1beta'}
-  ];
-  (function tryM(mi){
-    if(mi>=MODELS.length){clinicSimSOAP(text,vas);return;}
+  if(!S.geminiKey){clinicSimulateSOAP(text,vas);return;}
+  var prompt='한의원 원장 발언: "'+text+'"\nVAS: '+vas+'/10\n아래 JSON만 출력 (마크다운 없이):\n{"S":"주소증","O":"객관적소견(VAS포함)","A":"진단","P":"치료계획","next_appt":"다음예약"}';
+  var MODELS=[{name:'gemini-2.5-flash-lite',ver:'v1beta'},{name:'gemini-3.5-flash',ver:'v1beta'},{name:'gemini-2.0-flash',ver:'v1beta'}];
+  (function tryModel(mi){
+    if(mi>=MODELS.length){clinicSimulateSOAP(text,vas);return;}
     var m=MODELS[mi];
-    fetch('https://generativelanguage.googleapis.com/'+m.ver+'/models/'+m.name+':generateContent?key='+S.geminiKey,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:512}})})
-    .then(function(r){return r.json();}).then(function(d){
-      if(d.error){console.warn('[Gemini] 모델:'+m.name+' 오류:',d.error);tryM(mi+1);return;}
+    fetch('https://generativelanguage.googleapis.com/'+m.ver+'/models/'+m.name+':generateContent?key='+S.geminiKey,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:512}})
+    }).then(function(r){return r.json();}).then(function(d){
+      if(d.error){tryModel(mi+1);return;}
       var txt=(d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]&&d.candidates[0].content.parts[0].text)||'';
       txt=txt.replace(/```json|```/g,'').trim();
       try{
         var obj=JSON.parse(txt);
         ['s','o','a','p'].forEach(function(k){var el=document.getElementById('clinic-soap-'+k);if(el)el.value=obj[k.toUpperCase()]||'';});
-        var na2=document.getElementById('clinic-next');if(na2)na2.value=obj.next_appt||'';
+        var na2=document.getElementById('clinic-next-appt');if(na2)na2.value=obj.next_appt||'';
         if(loading)loading.textContent='';
-      }catch(e){tryM(mi+1);}
-    }).catch(function(e){console.warn('[Gemini] 네트워크 오류:',e);tryM(mi+1);});
+      }catch(e){tryModel(mi+1);}
+    }).catch(function(){tryModel(mi+1);});
   })(0);
 };
-window.clinicSimSOAP=function(text,vas){
+
+window.clinicSimulateSOAP=function(text,vas){
   setTimeout(function(){
     var el;
-    // 실제 텍스트에서 기본 정보 추출
-    var sText=text?'환자 호소: '+text.slice(0,100)+(text.length>100?'...':''):'증상 기록 필요';
-    el=document.getElementById('clinic-soap-s');if(el)el.value=sText+'\nVAS '+vas+'/10';
-    el=document.getElementById('clinic-soap-o');if(el)el.value='VAS '+vas+'/10 — '+(VAS_LABELS[vas]||'')+'\n(신체 검진 소견 입력 필요)';
-    el=document.getElementById('clinic-soap-a');if(el)el.value='(진단명 입력 필요)';
-    el=document.getElementById('clinic-soap-p');if(el)el.value='(치료 계획 입력 필요)';
-    el=document.getElementById('clinic-next');if(el)el.value='';
-    var loading=document.getElementById('clinic-loading');
-    if(loading)loading.textContent=S.geminiKey?'⚠️ AI 응답 실패 — 직접 수정해주세요':'(Gemini 키 미설정 — 직접 입력)';
-  },200);
+    el=document.getElementById('clinic-soap-s');if(el)el.value='경추부 통증 및 운동 제한 호소\nVAS '+vas+'/10';
+    el=document.getElementById('clinic-soap-o');if(el)el.value='경추 3-5번 압통(+)\nROM 굴곡/신전 제한\nVAS '+vas+'/10 — '+(VAS_LABELS[vas]||'');
+    el=document.getElementById('clinic-soap-a');if(el)el.value='경추 염좌 (C3-C5)\n근긴장 및 추간판 이상 의심';
+    el=document.getElementById('clinic-soap-p');if(el)el.value='침 치료 시행\n경추 추나 시행\n물리치료 병행 권유';
+    var na=document.getElementById('clinic-next-appt');if(na)na.value='3일 후 (침 + 추나)';
+    var loading=document.getElementById('clinic-loading');if(loading)loading.textContent='(Gemini 키 설정 후 AI 자동 생성)';
+  },800);
 };
+
 window.clinicCopyField=function(id){
   var el=document.getElementById(id);
   if(!el||!el.value.trim()){showToast('복사할 내용 없음','err');return;}
   navigator.clipboard.writeText(el.value.trim()).then(function(){showToast('📋 복사됨 ✓');}).catch(function(){});
 };
+
 window.clinicCopyAll=function(){
   var vas=S.clinicVas||5;
-  var sel=S.clinicSelectedPts||[];
+  var pt=S.clinicPatientId?S.patients.find(function(p){return p.id===S.clinicPatientId;}):null;
   var parts=[];
-  if(sel.length)parts.push('[환자] '+sel.map(function(p){return p.name+'('+p.chartNumber+')';}).join(', '));
+  if(pt)parts.push('[환자] '+pt.name+' ('+pt.chartNumber+')');
   parts.push('[VAS] '+vas+'/10 — '+(VAS_LABELS[vas]||''));
   [['s','S(주소증)'],['o','O(객관적)'],['a','A(진단)'],['p','P(계획)']].forEach(function(item){
     var el=document.getElementById('clinic-soap-'+item[0]);
     if(el&&el.value.trim())parts.push('['+item[1]+'] '+el.value.trim());
   });
-  var na=document.getElementById('clinic-next');if(na&&na.value.trim())parts.push('[다음예약] '+na.value.trim());
-  if(!parts.length){showToast('복사할 내용 없음','err');return;}
+  var na=document.getElementById('clinic-next-appt');
+  if(na&&na.value.trim())parts.push('[다음예약] '+na.value.trim());
+  if(!parts.length){showToast('복사할 내용이 없습니다','err');return;}
   navigator.clipboard.writeText(parts.join('\n\n')).then(function(){showToast('📋 전체 복사됨 ✓');}).catch(function(){});
 };
-window.clinicPreview=function(){
-  var vas=S.clinicVas||5;
-  var sel=S.clinicSelectedPts||[];
-  var get=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
-  var s=get('clinic-soap-s'),o=get('clinic-soap-o'),a=get('clinic-soap-a'),p=get('clinic-soap-p'),na=get('clinic-next');
-  if(!s&&!o&&!a&&!p){var err=document.getElementById('clinic-err');if(err)err.style.display='block';return;}
-  var err=document.getElementById('clinic-err');if(err)err.style.display='none';
-  var lines=['━━━━━━━━━━━━━━━━━━━━━━━━━━','📋 진료 차트 — '+todayStr()];
-  if(sel.length)lines.push('👤 환자: '+sel.map(function(pt){return pt.name+'('+pt.chartNumber+')';}).join(', '));
-  lines.push('📊 VAS: '+vas+'/10 — '+(VAS_LABELS[vas]||''));
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  if(s)lines.push('[S — 주소증]\n'+s);
-  if(o)lines.push('[O — 객관적 소견]\n'+o);
-  if(a)lines.push('[A — 진단]\n'+a);
-  if(p)lines.push('[P — 치료 계획]\n'+p);
-  if(na)lines.push('[📅 다음 예약]\n'+na);
-  lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  var previewTxt=document.getElementById('clinic-preview-txt');
-  var previewSec=document.getElementById('clinic-preview-sec');
-  if(previewTxt)previewTxt.textContent=lines.join('\n\n');
-  if(previewSec){previewSec.style.display='block';previewSec.scrollIntoView({behavior:'smooth'});}
-};
-window.clinicRegenerate=function(){if(_clinicTxt.trim())clinicGenerateSOAP(_clinicTxt);};
+
+window.clinicRegenerate=function(){if(_clinicText.trim())clinicGenerateSOAP(_clinicText);};
+
 window.clinicSaveChart=async function(){
-  var get=function(id){var el=document.getElementById(id);return el?el.value.trim():'';};
-  var s=get('clinic-soap-s'),o=get('clinic-soap-o'),a=get('clinic-soap-a'),p=get('clinic-soap-p');
-  var na=get('clinic-next');
+  var sEl=document.getElementById('clinic-soap-s');
+  var oEl=document.getElementById('clinic-soap-o');
+  var aEl=document.getElementById('clinic-soap-a');
+  var pEl=document.getElementById('clinic-soap-p');
+  var naEl=document.getElementById('clinic-next-appt');
+  var ntEl=document.querySelector('#clinic-soap-section select');
   var err=document.getElementById('clinic-err');
-  if(!s&&!o&&!a&&!p){if(err)err.style.display='block';return;}
+
+  var sVal=sEl?sEl.value.trim():'';
+  var oVal=oEl?oEl.value.trim():'';
+  var aVal=aEl?aEl.value.trim():'';
+  var pVal=pEl?pEl.value.trim():'';
+  var naVal=naEl?naEl.value.trim():'';
+  var ntVal=ntEl?ntEl.value:'';
+
+  if(!sVal&&!oVal&&!aVal&&!pVal){
+    if(err)err.style.display='block';
+    return;
+  }
   if(err)err.style.display='none';
-  var sel=S.clinicSelectedPts||[];
-  var vas=S.clinicVas||0;
+
   var today=todayStr();
+  var vas=S.clinicVas||0;
+  var pt=S.clinicPatientId?S.patients.find(function(p){return p.id===S.clinicPatientId;}):null;
+  var chartId='chart:'+uid();
+  var doctor=S.user&&S.user.name?S.user.name:'';
+
+  // SOAP 요약 텍스트 (일계표 메모용)
+  var nl2sp=function(s){return s.split('\n').join(' ');};
+  var soapSummary='[진료차트] VAS '+vas+'/10';
+  if(sVal)soapSummary+=' | S:'+nl2sp(sVal);
+  if(aVal)soapSummary+=' | A:'+nl2sp(aVal);
+  if(pVal)soapSummary+=' | P:'+nl2sp(pVal);
+  if(naVal)soapSummary+=' | 다음예약:'+naVal;
+
+  showToast('💾 차트 저장 중...');
+
+  var saved=false;
+
+  // ① Supabase clinic_charts 테이블에 저장
   if(_sb&&S.sbConnected){
-    try{
-      await _sb.from('clinic_charts').insert([{
-        id:'chart:'+uid(),
-        patient_id:sel.length>0?sel[0].id:'',
-        patient_name:sel.length>0?sel[0].name:'',
-        chart_number:sel.length>0?sel[0].chartNumber:'',
-        visit_date:today,vas:vas,
-        soap_s:s,soap_o:o,soap_a:a,soap_p:p,
-        next_appt:get('clinic-next'),
-        next_treatment:document.getElementById('clinic-treat')?document.getElementById('clinic-treat').value:'',
-        doctor:S.user.name||''
-      }]);
-    }catch(e){console.error('[차트저장 오류]',e);}
-  }
-  // 일계표 메모 자동 업데이트
-  if(sel.length>0&&_sb&&S.sbConnected){
-    var today2=todayStr();
-    var ledgerRows=getLedger(today2);
-    var targetRow=ledgerRows.find(function(r){
-      return r.chartNumber===sel[0].chartNumber||(r.patientName===sel[0].name);
-    });
-    if(targetRow){
-      var nl2sp=function(str){return str?str.split('\n').join(' '):'';}; 
-      var memo='[차트'+today2+'] VAS '+vas+'/10'
-        +(s?' S:'+nl2sp(s):'')
-        +(a?' A:'+nl2sp(a):'')
-        +(p?' P:'+nl2sp(p):'')
-        +(na?' 예약:'+na:'');
-      targetRow.memo=targetRow.memo?(targetRow.memo+' / '+memo):memo;
-      save('ledger');
-      if(_sb&&S.sbConnected)sbSave('ledger').catch(function(e){console.error(e);});
-      console.log('[진료실] 일계표 메모 업데이트:', sel[0].name);
+    var chartData={
+      id:chartId,
+      patient_id:pt?pt.id:'',
+      patient_name:pt?pt.name:(_clinicText?'':''),
+      chart_number:pt?pt.chartNumber:'',
+      visit_date:today,
+      vas:vas,
+      soap_s:sVal,
+      soap_o:oVal,
+      soap_a:aVal,
+      soap_p:pVal,
+      next_appt:naVal,
+      next_treatment:ntVal,
+      doctor:doctor
+    };
+    var result=await _sb.from('clinic_charts').insert([chartData]);
+    if(result.error){
+      console.error('[차트저장] Supabase 오류:', result.error);
+      showToast('⚠️ DB 저장 실패: '+result.error.message,'err');
+    }else{
+      saved=true;
+      console.log('[차트저장] Supabase 저장 완료');
     }
+
+    // ② 일계표 해당 환자 행 메모에 SOAP 요약 기록
+    if(pt&&S.ledger[today]){
+      var ledgerRows=S.ledger[today];
+      var targetRow=ledgerRows.find(function(r){
+        return r.chartNumber===pt.chartNumber||r.patientName===pt.name;
+      });
+      if(targetRow){
+        var prevMemo=targetRow.memo||'';
+        targetRow.memo=prevMemo?(prevMemo+' / '+soapSummary):soapSummary;
+        save('ledger');
+        sbSave('ledger').catch(function(e){console.error(e);});
+        console.log('[차트저장] 일계표 메모 업데이트:', pt.name);
+      }
+    }
+  }else{
+    // 오프라인 - 로컬에만
+    if(!S.clinicCharts)S.clinicCharts=[];
+    S.clinicCharts.unshift({id:chartId,patientName:pt?pt.name:'',visitDate:today,vas:vas,soapS:sVal,soapO:oVal,soapA:aVal,soapP:pVal,nextAppt:naVal,createdAt:new Date().toLocaleString('ko-KR')});
+    save('clinicCharts');
+    saved=true;
   }
 
-  var saved=document.getElementById('clinic-saved');
   if(saved){
-    saved.innerHTML='✅ 차트 저장 완료'+(sel.length>0?' — '+sel[0].name+' 환자':'')
-      +'<br><small style="opacity:.7">Supabase clinic_charts 저장 + 일계표 메모 업데이트</small>';
-    saved.style.display='block';
+    var savedEl=document.getElementById('clinic-saved');
+    if(savedEl){
+      savedEl.innerHTML='✅ 차트 저장 완료'+(pt?' — '+pt.name+' 환자':'')+'<br><small style="opacity:.7">Supabase + 일계표 메모 동시 저장됨</small>';
+      savedEl.style.display='block';
+    }
+    showToast('✅ 진료 차트 저장 완료!');
   }
-  showToast('✅ 진료 차트 저장 완료!');
-  // 과거 차트 목록 새로고침
-  if(sel.length>0)setTimeout(function(){clinicLoadHistory(sel[0].id,sel[0].name);},500);
-};
-// 과거 차트 로드
-window.clinicLoadHistory=async function(ptId, ptName){
-  var listEl=document.getElementById('clinic-history-list');
-  if(!listEl)return;
-  listEl.innerHTML='<div style="color:#9ca3af;text-align:center;padding:12px">불러오는 중...</div>';
-
-  if(!_sb||!S.sbConnected){
-    listEl.innerHTML='<div style="color:#9ca3af;text-align:center;padding:12px">Supabase 미연결</div>';
-    return;
-  }
-
-  var result=await _sb.from('clinic_charts')
-    .select('*')
-    .eq('patient_id', ptId)
-    .order('visit_date',{ascending:false})
-    .limit(10);
-
-  if(result.error||!result.data||!result.data.length){
-    listEl.innerHTML='<div style="color:#9ca3af;text-align:center;padding:12px">저장된 진료 기록이 없습니다</div>';
-    return;
-  }
-
-  listEl.innerHTML=result.data.map(function(c){
-    return '<div style="border:1px solid #e5e7eb;border-radius:10px;padding:12px 14px;margin-bottom:8px;background:#fff;cursor:pointer" onclick="clinicShowChart(\''+c.id+'\')" data-cid="'+c.id+'">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-      +'<span style="font-weight:600;font-size:13px;color:#111827">'+c.visit_date+'</span>'
-      +'<div style="display:flex;gap:6px;align-items:center">'
-      +'<span style="font-size:11px;background:#f3f4f6;padding:2px 8px;border-radius:20px;color:#374151">VAS '+c.vas+'/10</span>'
-      +(c.next_treatment?'<span style="font-size:11px;background:#eff6ff;padding:2px 8px;border-radius:20px;color:#2563eb">'+c.next_treatment+'</span>':'')
-      +'</div></div>'
-      +(c.soap_s?'<div style="font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">S: '+c.soap_s.replace(/\n/g,' ')+'</div>':'')
-      +(c.soap_a?'<div style="font-size:12px;color:#6b7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">A: '+c.soap_a.replace(/\n/g,' ')+'</div>':'')
-      +'</div>';
-  }).join('');
-};
-
-// 과거 차트 상세 보기
-window.clinicShowChart=function(chartId){
-  var el=document.querySelector('[data-cid="'+chartId+'"]');
-  if(!el)return;
-  var existing=document.getElementById('chart-detail-'+chartId);
-  if(existing){existing.remove();return;}
-
-  if(!_sb||!S.sbConnected)return;
-  _sb.from('clinic_charts').select('*').eq('id',chartId).single().then(function(result){
-    if(result.error||!result.data)return;
-    var c=result.data;
-    var lines=[
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━',
-      '📋 진료 차트 — '+c.visit_date,
-      '👤 환자: '+c.patient_name+(c.chart_number?' ('+c.chart_number+')':''),
-      '📊 VAS: '+c.vas+'/10',
-      '━━━━━━━━━━━━━━━━━━━━━━━━━━',
-    ];
-    if(c.soap_s)lines.push('[S — 주소증]\n'+c.soap_s);
-    if(c.soap_o)lines.push('[O — 객관적 소견]\n'+c.soap_o);
-    if(c.soap_a)lines.push('[A — 진단]\n'+c.soap_a);
-    if(c.soap_p)lines.push('[P — 치료 계획]\n'+c.soap_p);
-    if(c.next_appt)lines.push('[📅 다음 예약]\n'+c.next_appt+(c.next_treatment?' ('+c.next_treatment+')':''));
-    lines.push('━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    var txt=lines.join('\n\n');
-
-    var detail=document.createElement('div');
-    detail.id='chart-detail-'+chartId;
-    detail.style.cssText='margin-top:8px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px';
-    detail.innerHTML='<pre style="font-size:12px;color:#374151;line-height:1.7;white-space:pre-wrap;word-break:break-word;margin:0;font-family:inherit">'+txt+'</pre>'
-      +'<button onclick="navigator.clipboard.writeText('+JSON.stringify(txt)+').then(function(){showToast(\'📋 복사됨 ✓\');})" style="margin-top:8px;padding:5px 12px;background:#2563eb;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px">📋 복사</button>';
-    el.appendChild(detail);
-  });
 };
 
 window.clinicClearAll=function(){
-  _clinicTxt='';S.clinicPtSearchVal='';S.clinicSelectedPts=[];S.clinicPatientId=null;S.clinicVas=5;
+  _clinicText='';
+  S.clinicPtSearchVal='';
+  S.clinicSelectedPts=[];
+  S.clinicPatientId=null;
   var box=document.getElementById('clinic-transcript');
-  if(box)box.innerHTML='<span style="color:#9ca3af">녹음 버튼을 눌러 말씀하세요...<br>예: "경추 3-5번 압통 있고, ROM 제한, 침이랑 추나 하고 3일 뒤 오세요"</span>';
-  var sec=document.getElementById('clinic-soap-sec');if(sec)sec.style.display='none';
+  if(box)box.innerHTML='<span style="color:#9ca3af">녹음 버튼을 눌러 말씀하세요...<br>예시: "경추 3-5번 압통 있고, ROM 제한, 침이랑 추나 하고 3일 뒤 오세요"</span>';
+  var soapSec=document.getElementById('clinic-soap-section');if(soapSec)soapSec.style.display='none';
   var saved=document.getElementById('clinic-saved');if(saved)saved.style.display='none';
-  var prev=document.getElementById('clinic-preview-sec');if(prev)prev.style.display='none';
   render();
 };
 
@@ -5629,7 +5571,6 @@ function render(){
     else if(S.page==='ledger')content=renderLedger();
     else if(S.page==='schedule')content=renderSchedule();
     else if(S.page==='happycall')content=renderHappyCall();
-    else if(S.page==='messages')content=renderMessages();
     else if(S.page==='stats')content=renderStats();
     else if(S.page==='settings')content=renderSettings();
     else if(S.page==='ai')content=renderAI();
@@ -5844,25 +5785,17 @@ if('serviceWorker' in navigator){
 
 // iOS 홈화면 추가 안내 (최초 1회)
 window.addEventListener('load', function(){
-  try{
-    var isIOS=/iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
-    var isStandalone=('standalone' in window.navigator)&&window.navigator.standalone;
-    var shown=localStorage.getItem('pwa_hint_shown');
-    if(isIOS&&!isStandalone&&!shown){
-      setTimeout(function(){
-        var div=document.createElement('div');
-        div.style.cssText='position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;z-index:99999;max-width:300px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)';
-        var txt=document.createElement('div');
-        txt.innerHTML='📱 <b>앱으로 설치하기</b><br>하단 공유 버튼 → 홈 화면에 추가';
-        var btn=document.createElement('button');
-        btn.textContent='확인';
-        btn.style.cssText='margin-top:8px;background:#2563eb;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer;display:block;margin:8px auto 0';
-        btn.onclick=function(){div.remove();try{localStorage.setItem('pwa_hint_shown','1');}catch(e){}};
-        div.appendChild(txt);div.appendChild(btn);
-        document.body.appendChild(div);
-      },3000);
-    }
-  }catch(e){}
+  var isIOS = /iphone|ipad|ipod/.test(navigator.userAgent.toLowerCase());
+  var isInStandaloneMode = ('standalone' in window.navigator) && window.navigator.standalone;
+  var shown = localStorage.getItem('pwa_hint_shown');
+  if(isIOS && !isInStandaloneMode && !shown){
+    setTimeout(function(){
+      var div = document.createElement('div');
+      div.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1e293b;color:#fff;padding:14px 18px;border-radius:12px;font-size:13px;z-index:99999;max-width:300px;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.3)';
+      div.innerHTML = '📱 <b>앱으로 설치하기</b><br>하단 공유 버튼 → "홈 화면에 추가"<br><button onclick="this.parentNode.remove();localStorage.setItem('pwa_hint_shown','1')" style="margin-top:8px;background:#2563eb;color:#fff;border:none;padding:6px 16px;border-radius:6px;cursor:pointer">확인</button>';
+      document.body.appendChild(div);
+    }, 3000);
+  }
 });
 </script>
 </body>
