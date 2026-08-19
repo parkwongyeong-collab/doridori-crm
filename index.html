@@ -5043,14 +5043,20 @@ window.clinicGenerateSOAP=function(text){
   var saved=document.getElementById('clinic-saved');if(saved)saved.style.display='none';
   var vas=S.clinicVas||5;
   if(!S.geminiKey){clinicSimSOAP(text,vas);return;}
-  var prompt='한의원 원장 발언: "'+text+'"\nVAS: '+vas+'/10\nJSON만 출력: {"S":"주소증","O":"객관적소견(VAS포함)","A":"진단","P":"치료계획","next_appt":"다음예약"}';
-  var MODELS=[{name:'gemini-2.5-flash-lite',ver:'v1beta'},{name:'gemini-3.5-flash',ver:'v1beta'},{name:'gemini-2.0-flash',ver:'v1beta'}];
+  var prompt='당신은 한의원 차트 작성 AI입니다. 아래 발언을 SOAP 형식으로 정리하세요.\n\n[발언 내용]\n'+text+'\n\n[VAS 통증 점수] '+vas+'/10\n\n반드시 아래 JSON 형식으로만 출력하세요 (다른 텍스트, 마크다운 절대 금지):\n{"S":"주소증(환자 호소 증상을 한국어로)","O":"객관적소견(검사소견, VAS '+vas+'/10 포함)","A":"진단명","P":"치료계획","next_appt":"다음예약일정"}\n\n발언 내용을 그대로 반영해서 실제 내용으로 작성하세요.';
+  var MODELS=[
+    {name:'gemini-2.5-flash-lite-preview-06-17',ver:'v1beta'},
+    {name:'gemini-2.5-flash',ver:'v1beta'},
+    {name:'gemini-2.0-flash-lite',ver:'v1beta'},
+    {name:'gemini-1.5-flash',ver:'v1beta'},
+    {name:'gemini-1.5-flash-latest',ver:'v1beta'}
+  ];
   (function tryM(mi){
     if(mi>=MODELS.length){clinicSimSOAP(text,vas);return;}
     var m=MODELS[mi];
     fetch('https://generativelanguage.googleapis.com/'+m.ver+'/models/'+m.name+':generateContent?key='+S.geminiKey,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({contents:[{role:'user',parts:[{text:prompt}]}],generationConfig:{temperature:0.1,maxOutputTokens:512}})})
     .then(function(r){return r.json();}).then(function(d){
-      if(d.error){tryM(mi+1);return;}
+      if(d.error){console.warn('[Gemini] 모델:'+m.name+' 오류:',d.error);tryM(mi+1);return;}
       var txt=(d.candidates&&d.candidates[0]&&d.candidates[0].content&&d.candidates[0].content.parts&&d.candidates[0].content.parts[0]&&d.candidates[0].content.parts[0].text)||'';
       txt=txt.replace(/```json|```/g,'').trim();
       try{
@@ -5059,19 +5065,22 @@ window.clinicGenerateSOAP=function(text){
         var na2=document.getElementById('clinic-next');if(na2)na2.value=obj.next_appt||'';
         if(loading)loading.textContent='';
       }catch(e){tryM(mi+1);}
-    }).catch(function(){tryM(mi+1);});
+    }).catch(function(e){console.warn('[Gemini] 네트워크 오류:',e);tryM(mi+1);});
   })(0);
 };
 window.clinicSimSOAP=function(text,vas){
   setTimeout(function(){
     var el;
-    el=document.getElementById('clinic-soap-s');if(el)el.value='경추부 통증 및 운동 제한 호소\nVAS '+vas+'/10';
-    el=document.getElementById('clinic-soap-o');if(el)el.value='경추 3-5번 압통(+)\nROM 굴곡/신전 제한\nVAS '+vas+'/10 — '+(VAS_LABELS[vas]||'');
-    el=document.getElementById('clinic-soap-a');if(el)el.value='경추 염좌 (C3-C5)\n근긴장 및 추간판 이상 의심';
-    el=document.getElementById('clinic-soap-p');if(el)el.value='침 치료 시행\n경추 추나 시행\n물리치료 병행 권유';
-    el=document.getElementById('clinic-next');if(el)el.value='3일 후 (침 + 추나)';
-    var loading=document.getElementById('clinic-loading');if(loading)loading.textContent='(Gemini 키 설정 후 AI 자동 생성)';
-  },800);
+    // 실제 텍스트에서 기본 정보 추출
+    var sText=text?'환자 호소: '+text.slice(0,100)+(text.length>100?'...':''):'증상 기록 필요';
+    el=document.getElementById('clinic-soap-s');if(el)el.value=sText+'\nVAS '+vas+'/10';
+    el=document.getElementById('clinic-soap-o');if(el)el.value='VAS '+vas+'/10 — '+(VAS_LABELS[vas]||'')+'\n(신체 검진 소견 입력 필요)';
+    el=document.getElementById('clinic-soap-a');if(el)el.value='(진단명 입력 필요)';
+    el=document.getElementById('clinic-soap-p');if(el)el.value='(치료 계획 입력 필요)';
+    el=document.getElementById('clinic-next');if(el)el.value='';
+    var loading=document.getElementById('clinic-loading');
+    if(loading)loading.textContent=S.geminiKey?'⚠️ AI 응답 실패 — 직접 수정해주세요':'(Gemini 키 미설정 — 직접 입력)';
+  },200);
 };
 window.clinicCopyField=function(id){
   var el=document.getElementById(id);
