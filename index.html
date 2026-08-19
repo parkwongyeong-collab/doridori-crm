@@ -4839,121 +4839,137 @@ function renderClinic(){
 
   setTimeout(function(){
     var inp=document.getElementById('clinic-pt-inp');
-    if(inp&&sv){inp.value=sv;}
-    if(sv&&sr.length){
-      var box=document.getElementById('clinic-ac');
-      if(box&&box.style.display==='none')box.style.display='block';
-    }
+    if(inp){inp.value=sv;if(sv&&document.activeElement===inp&&sr.length){var box=document.getElementById('clinic-ac');if(box)box.style.display='block';}}
   },0);
 
   return '<div class="content">'
     +'<div class="page-title">🏥 진료실</div>'
-    // 환자 선택
+
+    // ── 수신자 선택 ──
     +'<div class="section-card" style="margin-bottom:14px">'
-    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
-    +'<div class="section-title">수신자 선택</div>'
-    +(sel.length>0?'<span style="background:#2563eb;color:#fff;font-size:11px;padding:2px 10px;border-radius:20px">'+sel.length+'명</span>':'')
+    +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">'
+    +'<div class="section-title" style="font-size:16px">수신자 선택</div>'
+    +(sel.length>0?'<span style="background:#2563eb;color:#fff;font-size:11px;font-weight:600;padding:2px 10px;border-radius:20px">'+sel.length+'명</span>':'<span style="width:8px;height:3px;background:#d1d5db;border-radius:2px;display:inline-block"></span>')
     +'</div>'
-    +'<div style="position:relative">'
-    +'<input id="clinic-pt-inp" class="form-inp" style="font-size:14px;padding:10px 14px" placeholder="이름 또는 차트번호..." autocomplete="off" value="'+sv+'" oninput="clinicPtSearch(this.value)">'
-    +'<div id="clinic-ac" style="display:'+(sr.length>0&&sv?'block':'none')+';position:absolute;top:calc(100%+4px);left:0;right:0;z-index:200;background:#fff;border:1px solid #e5e7eb;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);max-height:220px;overflow-y:auto">'
-    +sr.map(function(p){
-      var isSel=sel.some(function(x){return x.id===p.id;});
-      return '<div style="padding:11px 16px;cursor:pointer;border-bottom:1px solid #f3f4f6;display:flex;align-items:center;justify-content:space-between;background:'+(isSel?'#eff6ff':'#fff')+'" data-id="'+p.id+'" onmousedown="clinicTogglePt(this.dataset.id)">'
-        +'<div><div style="font-weight:600;font-size:14px">'+p.name+'</div>'
-        +'<div style="font-size:12px;color:#9ca3af">'+p.chartNumber+' · '+(p.phone||'번호없음')+'</div></div>'
-        +(isSel?'<div style="width:24px;height:24px;background:#22c55e;border-radius:5px;display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg></div>':'')
-        +'</div>';
-    }).join('')
-    +'</div>'
-    +'</div>'
-    +(sel.length>0
-      ?'<div style="margin-top:10px;background:#f0fdf4;border:1px solid #86efac;border-radius:8px;padding:12px 16px">'
-        +'<div style="font-size:12px;font-weight:600;color:#16a34a;margin-bottom:8px">🙋 발송 대상 '+sel.length+'명</div>'
-        +sel.map(function(p){
-          return '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(134,239,172,.3)">'
-            +'<span style="font-weight:600">'+p.name+'</span>'
-            +'<div style="display:flex;align-items:center;gap:12px">'
-            +'<span style="font-size:13px;color:#6b7280">'+(p.phone||'번호없음')+'</span>'
-            +'<button data-rid="'+p.id+'" onmousedown="clinicRemovePt(this.dataset.rid)" style="border:none;background:none;cursor:pointer;color:#dc2626;font-size:18px;padding:0">×</button>'
-            +'</div></div>';
+    // 검색창
+    +'<input id="clinic-pt-inp" class="form-inp" style="font-size:15px;padding:12px 16px;border-radius:10px;border:1.5px solid '+(sv?'#2563eb':'#e5e7eb')+'" placeholder="이름 또는 차트번호..." autocomplete="off" value="'+sv+'" oninput="clinicPtSearch(this.value)" onblur="setTimeout(function(){var b=document.getElementById(\'clinic-ac\');if(b)b.style.display=\'none\';},200)">'
+    // 검색 결과 목록
+    +(sr.length>0&&sv
+      ? '<div id="clinic-ac" style="margin-top:8px;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">'
+        +sr.map(function(p){
+          var isSel=sel.some(function(x){return x.id===p.id;});
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;cursor:pointer;border-bottom:1px solid #f3f4f6;background:'+(isSel?'#f0f9ff':'#fff')+'" data-id="'+p.id+'" onmousedown="clinicTogglePt(this.dataset.id)">'
+            +'<div>'
+            +'<div style="font-weight:700;font-size:15px;color:#111827">'+p.name+'</div>'
+            +'<div style="font-size:13px;color:#9ca3af;margin-top:2px">차트 '+p.chartNumber+' ｜ '+(p.phone||'번호없음')+'</div>'
+            +'</div>'
+            +'<div style="width:22px;height:22px;border-radius:50%;border:2px solid '+(isSel?'#2563eb':'#d1d5db')+';display:flex;align-items:center;justify-content:center;flex-shrink:0">'
+            +(isSel?'<div style="width:12px;height:12px;border-radius:50%;background:#2563eb"></div>':'')
+            +'</div>'
+            +'</div>';
         }).join('')
         +'</div>'
-      :'')
+      : '<div id="clinic-ac" style="display:none"></div>'
+    )
+    // 선택된 환자
+    +(sel.length>0
+      ? '<div style="margin-top:10px;border:1px solid #bfdbfe;border-radius:10px;overflow:hidden;background:#eff6ff">'
+        +sel.map(function(p,i){
+          return '<div style="display:flex;align-items:center;justify-content:space-between;padding:12px 16px;'+(i>0?'border-top:1px solid #bfdbfe':'')+'">'
+            +'<div>'
+            +'<div style="font-weight:700;font-size:15px;color:#1d4ed8">'+p.name+'</div>'
+            +'<div style="font-size:12px;color:#3b82f6;margin-top:2px">차트 '+p.chartNumber+'  '+( p.phone||'')+'</div>'
+            +'</div>'
+            +'<button data-rid="'+p.id+'" onmousedown="clinicRemovePt(this.dataset.rid)" style="border:none;background:rgba(59,130,246,.1);color:#2563eb;cursor:pointer;border-radius:6px;padding:4px 10px;font-size:12px;font-weight:600">변경</button>'
+            +'</div>';
+        }).join('')
+        +'</div>'
+      : ''
+    )
     +'</div>'
-    // VAS
+
+    // ── VAS ──
     +'<div class="section-card" style="margin-bottom:14px">'
     +'<div class="section-title" style="margin-bottom:12px">VAS 통증 척도</div>'
-    +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">'
+    +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">'
     +'<span style="font-size:11px;color:#9ca3af;min-width:28px;text-align:center;line-height:1.4">0<br>무통</span>'
     +'<input type="range" id="vas-slider" min="0" max="10" value="'+cv+'" step="1" style="flex:1" oninput="clinicUpdateVAS(this.value)">'
     +'<span style="font-size:11px;color:#9ca3af;min-width:28px;text-align:center;line-height:1.4">10<br>극심</span>'
     +'</div>'
     +'<div style="display:flex;align-items:center;gap:12px">'
-    +'<span id="vas-num" style="font-size:32px;font-weight:700;color:'+VAS_COLORS[cv]+'">'+cv+'</span>'
-    +'<div><div id="vas-lbl" style="font-size:13px;color:#374151;margin-bottom:4px">'+VAS_LABELS[cv]+'</div>'
-    +'<span id="vas-badge" style="font-size:11px;padding:2px 10px;border-radius:20px;background:'+cb[1]+';color:'+cb[2]+'">'+cb[0]+'</span></div>'
+    +'<span id="vas-num" style="font-size:36px;font-weight:700;color:'+VAS_COLORS[cv]+'">'+cv+'</span>'
+    +'<div><div id="vas-lbl" style="font-size:14px;color:#374151;margin-bottom:4px">'+VAS_LABELS[cv]+'</div>'
+    +'<span id="vas-badge" style="font-size:12px;padding:3px 12px;border-radius:20px;font-weight:600;background:'+cb[1]+';color:'+cb[2]+'">'+cb[0]+'</span>'
+    +'</div></div>'
     +'</div>'
-    +'</div>'
-    // 음성 입력
+
+    // ── 음성 입력 ──
     +'<div class="section-card" style="margin-bottom:14px">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
     +'<div class="section-title">음성 입력</div>'
-    +'<span id="clinic-rec-st" style="font-size:11px;color:#9ca3af;display:flex;align-items:center;gap:4px"><span id="clinic-rec-dot" style="width:7px;height:7px;border-radius:50%;background:#d1d5db;display:inline-block"></span>대기</span>'
+    +'<span id="clinic-rec-st" style="font-size:12px;color:#9ca3af;display:flex;align-items:center;gap:5px"><span id="clinic-rec-dot" style="width:8px;height:8px;border-radius:50%;background:#d1d5db;display:inline-block"></span>대기</span>'
     +'</div>'
-    +'<div id="clinic-transcript" style="min-height:70px;font-size:13px;line-height:1.7;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px;margin-bottom:12px;color:#374151"><span style="color:#9ca3af">녹음 버튼을 눌러 말씀하세요...<br>예: "경추 3-5번 압통 있고, ROM 제한, 침이랑 추나 하고 3일 뒤 오세요"</span></div>'
+    +'<div id="clinic-transcript" style="min-height:80px;font-size:14px;line-height:1.7;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:14px;margin-bottom:12px;color:#374151"><span style="color:#9ca3af">🎙 녹음 버튼을 눌러 원장님 발언을 입력하세요<br><br>예: "경추 3-5번 압통 있고, ROM 제한, 침이랑 추나 하고 3일 뒤 오세요"</span></div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +'<button type="button" id="clinic-rec-btn" onclick="clinicToggleRec()" class="btn">🎙 녹음 시작</button>'
-    +'<button type="button" onclick="clinicUseSample()" class="btn">▶ 예시 테스트</button>'
-    +'<button type="button" onclick="clinicClearAll()" class="btn" style="color:#6b7280">초기화</button>'
+    +'<button type="button" id="clinic-rec-btn" onclick="clinicToggleRec()" class="btn btn-primary" style="min-width:110px">🎙 녹음 시작</button>'
+    +'<button type="button" onclick="clinicUseSample()" class="btn">▶ 예시</button>'
+    +'<button type="button" onclick="clinicClearAll()" class="btn" style="color:#6b7280;margin-left:auto">초기화</button>'
     +'</div>'
     +'</div>'
-    // SOAP
+
+    // ── SOAP ──
     +'<div id="clinic-soap-sec" style="display:none">'
     +'<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">'
     +'<div class="section-title">SOAP 차트'
-    +(S.geminiKey?'<span style="font-size:11px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:20px;margin-left:6px">✅ Gemini 연결됨</span>':'<span style="font-size:11px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:20px;margin-left:6px">⚠️ 데모모드</span>')
+    +(S.geminiKey
+      ?'<span style="font-size:11px;background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:20px;margin-left:6px">✅ AI 연결됨</span>'
+      :'<span style="font-size:11px;background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:20px;margin-left:6px">⚠️ 데모</span>')
     +'</div>'
-    +'<div style="display:flex;gap:6px;align-items:center">'
-    +'<span id="clinic-loading" style="font-size:11px;color:#9ca3af"></span>'
-    +'<button type="button" onclick="clinicCopyAll()" class="btn btn-sm">📋 전체 복사</button>'
+    +'<div style="display:flex;gap:6px">'
+    +'<span id="clinic-loading" style="font-size:11px;color:#9ca3af;align-self:center"></span>'
+    +'<button type="button" onclick="clinicCopyAll()" class="btn btn-sm btn-primary">📋 전체 복사</button>'
     +'</div></div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">'
-    +[['s','S — SUBJECTIVE','주소증','#2563eb'],['o','O — OBJECTIVE','객관적 소견','#16a34a'],['a','A — ASSESSMENT','진단','#d97706'],['p','P — PLAN','치료 계획','#dc2626']].map(function(item){
+    +[['s','S — 주소증','#2563eb'],['o','O — 객관적 소견','#16a34a'],['a','A — 진단','#d97706'],['p','P — 치료 계획','#dc2626']].map(function(item){
       return '<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px">'
         +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-        +'<span style="font-size:11px;font-weight:600;color:'+item[3]+'">'+item[1]+'</span>'
-        +'<button data-fid="clinic-soap-'+item[0]+'" onmousedown="clinicCopyField(this.dataset.fid)" style="border:none;background:none;cursor:pointer;color:#9ca3af;font-size:16px;padding:0">⎘</button>'
+        +'<span style="font-size:11px;font-weight:700;color:'+item[2]+'">'+item[1]+'</span>'
+        +'<button data-fid="clinic-soap-'+item[0]+'" onmousedown="clinicCopyField(this.dataset.fid)" style="border:none;background:none;cursor:pointer;color:#9ca3af;font-size:16px;padding:0" title="복사">⎘</button>'
         +'</div>'
-        +'<textarea id="clinic-soap-'+item[0]+'" rows="3" style="width:100%;border:none;background:transparent;font-size:13px;color:#111827;line-height:1.7;resize:vertical;font-family:inherit;outline:none" placeholder="'+item[2]+'..."></textarea>'
+        +'<textarea id="clinic-soap-'+item[0]+'" rows="3" style="width:100%;border:none;background:transparent;font-size:13px;color:#111827;line-height:1.7;resize:vertical;font-family:inherit;outline:none" placeholder="'+item[1].split(' — ')[1]+'..."></textarea>'
         +'</div>';
     }).join('')
     +'</div>'
-    +'<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:12px">'
+    +'<div style="background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:14px;margin-bottom:14px">'
     +'<div style="font-size:11px;font-weight:600;color:#374151;margin-bottom:8px">📅 다음 예약</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +'<input id="clinic-next" class="form-inp" style="flex:1;min-width:150px" placeholder="예: 3일 후, 8월 22일 오후 2시">'
     +'<select id="clinic-treat" class="form-inp" style="max-width:130px"><option>침 + 추나</option><option>침</option><option>추나</option><option>약침</option></select>'
     +'</div></div>'
-    +'<div id="clinic-err" style="font-size:12px;color:#dc2626;margin-bottom:8px;display:none">내용을 입력해주세요.</div>'
+    // 복사 안내
+    +'<div style="background:#fffbeb;border:1px solid #fcd34d;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#92400e">'
+    +'💡 <b>📋 전체 복사</b> 버튼 → 일계표 해당 환자 <b>메모</b> 칸에 붙여넣기 하세요'
+    +'</div>'
     +'<div style="display:flex;gap:8px">'
     +'<button type="button" onclick="clinicPreview()" class="btn" style="padding:10px 16px">👁 미리보기</button>'
-    +'<button type="button" onclick="clinicSaveChart()" class="btn btn-primary" style="flex:1;padding:10px;font-size:14px">💾 차트 저장</button>'
-    +'<button type="button" onclick="clinicRegenerate()" class="btn" style="padding:10px 14px">🔄</button>'
+    +'<button type="button" onclick="clinicSaveChart()" class="btn btn-primary" style="flex:1;padding:10px;font-size:14px">💾 저장</button>'
+    +'<button type="button" onclick="clinicRegenerate()" class="btn" style="padding:10px 14px" title="재생성">🔄</button>'
     +'</div></div>'
-    +'<div id="clinic-preview-sec" style="display:none;margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:14px">'
+
+    // 미리보기
+    +'<div id="clinic-preview-sec" style="display:none;margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-    +'<span style="font-size:13px;font-weight:600">📄 저장 미리보기</span>'
-    +'<button onmousedown="document.getElementById(\'clinic-preview-sec\').style.display=\'none\'" style="border:none;background:none;cursor:pointer;color:#9ca3af;font-size:20px">×</button>'
-    +'</div>'
-    +'<pre id="clinic-preview-txt" style="font-size:12px;color:#374151;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin:0;font-family:inherit"></pre>'
-    +'<div style="margin-top:8px;padding:8px;background:#eff6ff;border-radius:6px;font-size:11px;color:#2563eb">💾 저장: Supabase clinic_charts + 일계표 메모</div>'
+    +'<span style="font-size:14px;font-weight:600;color:#374151">📄 저장 내용 미리보기</span>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button onclick="clinicCopyAll()" class="btn btn-sm">📋 복사</button>'
+    +'<button onmousedown="document.getElementById(\'clinic-preview-sec\').style.display=\'none\'" style="border:none;background:none;cursor:pointer;color:#9ca3af;font-size:20px;padding:0">×</button>'
+    +'</div></div>'
+    +'<pre id="clinic-preview-txt" style="font-size:13px;color:#374151;line-height:1.8;white-space:pre-wrap;word-break:break-word;margin:0;font-family:inherit;background:#fff;border:1px solid #e5e7eb;border-radius:8px;padding:14px"></pre>'
     +'</div>'
     +'<div id="clinic-saved" style="display:none;margin-top:12px;padding:14px;background:#f0fdf4;border:1px solid #86efac;border-radius:10px;font-size:13px;color:#16a34a"></div>'
     +'</div>';
 }
 
-// 진료실 함수들
 window.clinicPtSearch=function(val){
   S.clinicPtSearchVal=val;
   var box=document.getElementById('clinic-ac');
