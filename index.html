@@ -5045,11 +5045,10 @@ window.clinicGenerateSOAP=function(text){
   if(!S.geminiKey){clinicSimSOAP(text,vas);return;}
   var prompt='당신은 한의원 차트 작성 AI입니다. 아래 발언을 SOAP 형식으로 정리하세요.\n\n[발언 내용]\n'+text+'\n\n[VAS 통증 점수] '+vas+'/10\n\n반드시 아래 JSON 형식으로만 출력하세요 (다른 텍스트, 마크다운 절대 금지):\n{"S":"주소증(환자 호소 증상을 한국어로)","O":"객관적소견(검사소견, VAS '+vas+'/10 포함)","A":"진단명","P":"치료계획","next_appt":"다음예약일정"}\n\n발언 내용을 그대로 반영해서 실제 내용으로 작성하세요.';
   var MODELS=[
-    {name:'gemini-2.5-flash-lite-preview-06-17',ver:'v1beta'},
-    {name:'gemini-2.5-flash',ver:'v1beta'},
-    {name:'gemini-2.0-flash-lite',ver:'v1beta'},
-    {name:'gemini-1.5-flash',ver:'v1beta'},
-    {name:'gemini-1.5-flash-latest',ver:'v1beta'}
+    {name:'gemini-3.5-flash',ver:'v1beta'},
+    {name:'gemini-3.1-flash-lite',ver:'v1beta'},
+    {name:'gemini-3.5-flash-lite',ver:'v1beta'},
+    {name:'gemini-2.5-flash-lite-preview-06-17',ver:'v1beta'}
   ];
   (function tryM(mi){
     if(mi>=MODELS.length){clinicSimSOAP(text,vas);return;}
