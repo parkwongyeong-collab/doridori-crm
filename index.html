@@ -5148,17 +5148,19 @@ window.clinicSaveChart=async function(){
   var vas=S.clinicVas||0;
   var today=todayStr();
   if(_sb&&S.sbConnected){
-    await _sb.from('clinic_charts').insert([{
-      id:'chart:'+uid(),
-      patient_id:sel.length>0?sel[0].id:'',
-      patient_name:sel.length>0?sel[0].name:'',
-      chart_number:sel.length>0?sel[0].chartNumber:'',
-      visit_date:today,vas:vas,
-      soap_s:s,soap_o:o,soap_a:a,soap_p:p,
-      next_appt:get('clinic-next'),
-      next_treatment:document.getElementById('clinic-treat')?document.getElementById('clinic-treat').value:'',
-      doctor:S.user.name||''
-    }]).catch(function(e){console.error(e);});
+    try{
+      await _sb.from('clinic_charts').insert([{
+        id:'chart:'+uid(),
+        patient_id:sel.length>0?sel[0].id:'',
+        patient_name:sel.length>0?sel[0].name:'',
+        chart_number:sel.length>0?sel[0].chartNumber:'',
+        visit_date:today,vas:vas,
+        soap_s:s,soap_o:o,soap_a:a,soap_p:p,
+        next_appt:get('clinic-next'),
+        next_treatment:document.getElementById('clinic-treat')?document.getElementById('clinic-treat').value:'',
+        doctor:S.user.name||''
+      }]);
+    }catch(e){console.error('[차트저장 오류]',e);}
   }
   // 일계표 메모 자동 업데이트
   if(sel.length>0&&_sb&&S.sbConnected){
